@@ -4,7 +4,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import './JournalEditor.css';
 
-export default function BrainDumpInput({ onAddItem, onSaveDraft, activeDraft, onClearActiveDraft, currentUser }) {
+export default function BrainDumpInput({ onAddItem, onSaveDraft, activeDraft, onClearActiveDraft, currentUser, onCancel }) {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('now');
 
@@ -103,6 +103,11 @@ export default function BrainDumpInput({ onAddItem, onSaveDraft, activeDraft, on
     onClearActiveDraft();
   };
 
+  const handleCancel = () => {
+    resetFormState();
+    if (typeof onCancel === 'function') onCancel();
+  };
+
   return (
     <div className="editor-container">
       <form onSubmit={triggerSubmitPost} className="form-layout">
@@ -110,11 +115,8 @@ export default function BrainDumpInput({ onAddItem, onSaveDraft, activeDraft, on
           <div className="avatar-column">
             <div className="user-avatar" style={currentUser?.avatar || currentUser?.avatarUrl ? { backgroundImage: 'none', padding: 0 } : {}}>
               {(currentUser?.avatar || currentUser?.avatarUrl) && (
-                <img
-                  src={currentUser.avatar || currentUser.avatarUrl}
-                  alt="avatar"
-                  style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', display: 'block' }}
-                />
+                <img src={currentUser.avatar || currentUser.avatarUrl} alt="avatar"
+                  style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', display: 'block' }} />
               )}
             </div>
           </div>
@@ -238,11 +240,9 @@ export default function BrainDumpInput({ onAddItem, onSaveDraft, activeDraft, on
           </div>
 
           <div className="actions-right">
-            {activeDraft && (
-              <button type="button" className="text-cancel-btn" onClick={resetFormState}>
+            <button type="button" className="text-cancel-btn" onClick={handleCancel}>
                 Cancel
               </button>
-            )}
             <button type="button" className="draft-save-btn" onClick={triggerSaveDraft}>
               Save Draft
             </button>

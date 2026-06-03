@@ -35,6 +35,18 @@ export default function App() {
   const [sortBy, setSortBy] = useState('newest'); // newest | oldest | category
   const [filterCategory, setFilterCategory] = useState('all'); // all | now | delegate | someday
   const [viewMode, setViewMode] = useState('list'); // list | gallery
+  const [showSortPanel, setShowSortPanel] = useState(false);
+  const sortPanelRef = React.useRef(null);
+
+  React.useEffect(() => {
+    function handleClickOutside(e) {
+      if (sortPanelRef.current && !sortPanelRef.current.contains(e.target)) {
+        setShowSortPanel(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('sortsweet-items', JSON.stringify(items));
@@ -221,35 +233,68 @@ export default function App() {
         />
       )}
 
-      {/* ── Sort & View controls ── */}
-      <div className="feed-controls-bar">
-        <div className="sort-view-group">
-          <span className="controls-label">⇅ Sort & View</span>
-          <select className="feed-control-select" value={sortBy} onChange={e => setSortBy(e.target.value)}>
-            <option value="newest">Newest first</option>
-            <option value="oldest">Oldest first</option>
-            <option value="category">By category</option>
-            <option value="comments">Most comments</option>
-          </select>
-          <select className="feed-control-select" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
-            <option value="all">All tags</option>
-            <option value="now">Now</option>
-            <option value="delegate">Delegate</option>
-            <option value="someday">Someday</option>
-          </select>
-        </div>
-        <div className="view-toggle-group">
-          <button
-            className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
-            onClick={() => setViewMode('list')}
-            title="List view"
-          >☰</button>
-          <button
-            className={`view-toggle-btn ${viewMode === 'gallery' ? 'active' : ''}`}
-            onClick={() => setViewMode('gallery')}
-            title="Gallery view"
-          >⊞</button>
-        </div>
+      {/* ── Sort & View pill + dropdown ── */}
+      <div className="sort-view-pill-wrapper" ref={sortPanelRef}>
+        <button
+          className={`sort-view-pill-btn ${showSortPanel ? 'open' : ''}`}
+          onClick={() => setShowSortPanel(v => !v)}
+        >
+          <span className="sort-view-pill-icon">⇅</span>
+          Sort &amp; View
+          <span className="sort-view-pill-chevron">{showSortPanel ? '︿' : '﹀'}</span>
+        </button>
+
+        {showSortPanel && (
+          <div className="sort-view-dropdown-panel">
+            <div className="svp-section-label">Sort By</div>
+            {[
+              { value: 'newest', label: 'Recently Active' },
+              { value: 'oldest', label: 'Date Posted' },
+              { value: 'comments', label: 'Most Comments' },
+            ].map(opt => (
+              <label key={opt.value} className="svp-radio-row">
+                <span className="svp-radio-label">{opt.label}</span>
+                <input
+                  type="radio"
+                  name="sortBy"
+                  checked={sortBy === opt.value}
+                  onChange={() => setSortBy(opt.value)}
+                  className="svp-radio-input"
+                />
+                <span className={`svp-radio-circle ${sortBy === opt.value ? 'checked' : ''}`} />
+              </label>
+            ))}
+
+            <div className="svp-divider" />
+
+            <div className="svp-section-label">View As</div>
+            {[
+              { value: 'list', label: 'List' },
+              { value: 'gallery', label: 'Gallery' },
+            ].map(opt => (
+              <label key={opt.value} className="svp-radio-row">
+                <span className="svp-radio-label">{opt.label}</span>
+                <input
+                  type="radio"
+                  name="viewMode"
+                  checked={viewMode === opt.value}
+                  onChange={() => setViewMode(opt.value)}
+                  className="svp-radio-input"
+                />
+                <span className={`svp-radio-circle ${viewMode === opt.value ? 'checked' : ''}`} />
+              </label>
+            ))}
+
+            <div className="svp-divider" />
+
+            <button
+              className="svp-reset-btn"
+              onClick={() => { setSortBy('newest'); setViewMode('list'); setFilterCategory('all'); setShowSortPanel(false); }}
+            >
+              Reset to default
+            </button>
+          </div>
+        )}
       </div>
 
       <div className={`workspace-layout ${activePost ? 'split-view' : ''}`}>

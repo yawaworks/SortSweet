@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export default function ForumFeed({ items, activePostId, onSelectPost, onMoveItem, onDeleteItem, onUpdateItem, viewMode, sidebarOpen }) {
+export default function ForumFeed({ items, activePostId, onSelectPost, onMoveItem, onDeleteItem, onUpdateItem, viewMode, sidebarOpen, pinnedIds = [], onTogglePin }) {
   if (items.length === 0) {
     return (
       <div className="feed-empty-state">
@@ -21,10 +21,12 @@ export default function ForumFeed({ items, activePostId, onSelectPost, onMoveIte
             item={item}
             isActive={item.id === activePostId}
             onSelect={() => onSelectPost(item.id)}
-            onMoveItem={onMoveItem}
             onDeleteItem={onDeleteItem}
             onUpdateItem={onUpdateItem}
             viewMode={viewMode}
+            isPinned={pinnedIds.includes(item.id)}
+            onTogglePin={onTogglePin}
+            canPin={!pinnedIds.includes(item.id) && pinnedIds.length >= 3}
           />
         ))}
       </AnimatePresence>
@@ -51,21 +53,9 @@ function getBodyPreview(bodyHtml, maxLen = 100) {
   return text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
 }
 
-function ForumPost({ item, isActive, onSelect, onMoveItem, onDeleteItem, onUpdateItem, viewMode }) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editText, setEditText] = useState(item.text);
-
+function ForumPost({ item, isActive, onSelect, onDeleteItem, viewMode, isPinned, onTogglePin, canPin }) {
   const { title, bodyHtml } = parseCompiledHtml(item.text);
   const bodyPreview = getBodyPreview(bodyHtml);
-
-  const handleSave = (e) => {
-    e.stopPropagation();
-    if (editText.trim()) {
-      onUpdateItem(item.id, { text: editText });
-      setIsEditing(false);
-    }
-  };
-
   const tagLabels = { now: 'Now', delegate: 'Delegate', someday: 'Later' };
 
   if (viewMode === 'gallery') {
@@ -75,26 +65,50 @@ function ForumPost({ item, isActive, onSelect, onMoveItem, onDeleteItem, onUpdat
         initial={{ opacity: 0, scale: 0.97 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
-        transition={{ type: "spring", stiffness: 500, damping: 40 }}
-        className={`gallery-card ${isActive ? 'active-row' : ''}`}
+        transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+        className={`gallery-card ${isActive ? 'active-row' : ''} ${isPinned ? 'pinned-card' : ''}`}
         onClick={onSelect}
       >
-        {item.image && <img src={item.image} alt="" className="gallery-card-img" />}
-        <div className="gallery-card-body">
-          <span className={`tag-pill active-${item.category}`}>{tagLabels[item.category]}</span>
-          <h3 className="gallery-card-title">{title || 'Untitled Entry'}</h3>
-          {bodyPreview && <p className="gallery-card-preview">{bodyPreview}</p>}
-          <div className="post-meta" style={{ marginTop: 'auto' }}>
-            <span>{item.comments?.length || 0} comments · {item.timestamp || ''}</span>
+        {/* Top bar: author + timestamp + controls */}
+        <div className="gallery-card-meta">
+          <span className="gallery-card-author">{item.authorName || 'User'}</span>
+          <span className="gallery-card-timestamp">{item.timestamp || ''}</span>
+          <div className="gallery-card-controls" onClick={e => e.stopPropagation()}>
+            {isPinned && <span className="pin-badge gallery-pin-badge">📌</span>}
+            <button
+              className="gallery-action-btn"
+              title={isPinned ? 'Unpin' : canPin ? 'Max 3 pins reached' : 'Pin post'}
+              onClick={e => { e.stopPropagation(); if (!canPin) onTogglePin(item.id); }}
+              style={{ opacity: canPin ? 0.35 : 1 }}
+            >
+              {isPinned ? '📌' : '📍'}
+            </button>
+            <button
+              className="gallery-action-btn gallery-delete-btn"
+              onClick={e => { e.stopPropagation(); onDeleteItem(item.id); }}
+            >✕</button>
           </div>
         </div>
-        <div className="gallery-card-controls" onClick={e => e.stopPropagation()}>
-          <select value={item.category} onChange={e => onMoveItem(item.id, e.target.value)} className="tag-pill" style={{ fontSize: 11 }}>
-            <option value="now">Now</option>
-            <option value="delegate">Delegate</option>
-            <option value="someday">Later</option>
-          </select>
-          <button className="text-cancel-btn" onClick={e => { e.stopPropagation(); onDeleteItem(item.id); }}>✕</button>
+
+        {/* Title */}
+        <h3 className="gallery-card-title">{title || 'Untitled Entry'}</h3>
+
+        {/* Full-bleed image — no wrapper div */}
+        {item.image && (
+          <img src={item.image} alt="" className="gallery-card-img" />
+        )}
+
+        {/* Body preview (text-only cards) */}
+        {!item.image && bodyPreview && (
+          <p className="gallery-card-preview">{bodyPreview}</p>
+        )}
+
+        {/* Footer */}
+        <div className="gallery-card-footer">
+          <span className="gallery-card-comments">💬 {item.comments?.length || 0}</span>
+          <span className={`tag-pill active-${item.category}`} style={{ fontSize: 11, padding: '2px 8px' }}>
+            {tagLabels[item.category]}
+          </span>
         </div>
       </motion.div>
     );
@@ -107,55 +121,39 @@ function ForumPost({ item, isActive, onSelect, onMoveItem, onDeleteItem, onUpdat
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -10, transition: { duration: 0.15 } }}
-      transition={{ type: "spring", stiffness: 600, damping: 50 }}
-      className={`item-card ${isActive ? 'active-row' : ''}`}
+      transition={{ type: 'spring', stiffness: 600, damping: 50 }}
+      className={`item-card ${isActive ? 'active-row' : ''} ${isPinned ? 'pinned-card' : ''}`}
       onClick={onSelect}
     >
       <div className="post-main-content">
-        {isEditing ? (
-          <input
-            type="text"
-            value={editText}
-            onChange={e => setEditText(e.target.value)}
-            className="sidebar-edit-textarea"
-            onKeyDown={e => e.key === 'Enter' && handleSave(e)}
-            onClick={e => e.stopPropagation()}
-            autoFocus
-          />
-        ) : (
-          <>
-            <div className="post-title-row">
-              <h3 className="post-compiled-title" style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 800 }}>
-                {title || 'Untitled Entry'}
-              </h3>
-            </div>
-            {bodyPreview && (
-              <p style={{ margin: '0 0 6px', fontSize: 13, color: '#536471', lineHeight: 1.4 }}>{bodyPreview}</p>
-            )}
-            <div className="post-meta" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className={`tag-pill active-${item.category}`} style={{ fontSize: 11, padding: '2px 8px' }}>
-                {tagLabels[item.category]}
-              </span>
-              <span>💬 {item.comments?.length || 0}</span>
-              <span>· {item.timestamp || ''}</span>
-            </div>
-          </>
+        <div className="post-title-row">
+          {isPinned && <span className="pin-badge">📌 Pinned</span>}
+          <h3 className="post-compiled-title" style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 800, textAlign: 'left' }}>
+            {title || 'Untitled Entry'}
+          </h3>
+        </div>
+        {bodyPreview && (
+          <p style={{ margin: '0 0 6px', fontSize: 13, color: '#536471', lineHeight: 1.4 }}>{bodyPreview}</p>
         )}
+        <div className="post-meta" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span className={`tag-pill active-${item.category}`} style={{ fontSize: 11, padding: '2px 8px' }}>
+            {tagLabels[item.category]}
+          </span>
+          <span>💬 {item.comments?.length || 0}</span>
+          <span>· {item.timestamp || ''}</span>
+        </div>
       </div>
 
       <div className="post-right-aside" onClick={e => e.stopPropagation()}>
         {item.image && <img src={item.image} alt="Attachment" className="post-thumbnail" />}
         <div className="post-controls">
-          <select value={item.category} onChange={e => onMoveItem(item.id, e.target.value)} className="tag-pill" style={{ fontSize: 11 }}>
-            <option value="now">Now</option>
-            <option value="delegate">Delegate</option>
-            <option value="someday">Later</option>
-          </select>
-          <button className="draft-save-btn" style={{ padding: '4px 10px', fontSize: 12 }} onClick={e => {
-            e.stopPropagation();
-            if (isEditing) handleSave(e); else setIsEditing(true);
-          }}>
-            {isEditing ? 'Save' : 'Edit'}
+          <button
+            className={`pin-toggle-btn ${isPinned ? 'pinned' : ''}`}
+            title={isPinned ? 'Unpin' : canPin ? 'Max 3 pins reached' : 'Pin post'}
+            onClick={e => { e.stopPropagation(); if (!canPin) onTogglePin(item.id); }}
+            disabled={canPin}
+          >
+            {isPinned ? '📌' : '📍'}
           </button>
           <button className="text-cancel-btn" onClick={e => { e.stopPropagation(); onDeleteItem(item.id); }}>✕</button>
         </div>

@@ -13,7 +13,8 @@ export default function PostDetailSidebar({
 }) {
   const [showMenu, setShowMenu] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editText, setEditText] = useState('');
+  const [editTitle, setEditTitle] = useState('');
+  const [editBody, setEditBody] = useState('');
   const [commentText, setCommentText] = useState('');
   const menuRef = useRef(null);
 
@@ -22,7 +23,12 @@ export default function PostDetailSidebar({
   const isOp = !item.authorName || item.authorName === currentUserName || item.authorName === 'Original Poster';
 
   useEffect(() => {
-    if (item) setEditText(item.text || '');
+    if (item) {
+      setEditTitle(getPlainTitleText(item.text) || '');
+      const el = document.createElement('div');
+      el.innerHTML = getBodyHtmlContent(item.text);
+      setEditBody((el.textContent || '').trim());
+    }
   }, [item]);
 
   useEffect(() => {
@@ -67,10 +73,15 @@ export default function PostDetailSidebar({
   }, [item.id, item.timestamp]);
 
   const handleSaveEdit = () => {
-    if (editText.trim()) {
-      onUpdateItem(item.id, { text: editText });
-      setIsEditing(false);
-    }
+    if (!editTitle.trim() && !editBody.trim()) return;
+    const rebuilt = `
+      <div class="journal-post-compiled">
+        <h2 class="post-compiled-title">${editTitle.trim() || 'Untitled Entry'}</h2>
+        <div class="post-compiled-body rich-text-display-pane"><p>${editBody.trim()}</p></div>
+      </div>
+    `;
+    onUpdateItem(item.id, { text: rebuilt });
+    setIsEditing(false);
   };
 
   const handlePostComment = () => {
@@ -127,7 +138,20 @@ export default function PostDetailSidebar({
         {/* Big post title */}
         {isEditing ? (
           <div className="sidebar-edit-mode-container">
-            <textarea value={editText} onChange={(e) => setEditText(e.target.value)} className="sidebar-edit-textarea" />
+            <input
+              type="text"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              className="sidebar-edit-title-input"
+              placeholder="Post title..."
+            />
+            <textarea
+              value={editBody}
+              onChange={(e) => setEditBody(e.target.value)}
+              className="sidebar-edit-textarea"
+              placeholder="Post body..."
+              rows={5}
+            />
             <div className="sidebar-edit-actions">
               <button type="button" className="edit-cancel" onClick={() => setIsEditing(false)}>Cancel</button>
               <button type="button" className="edit-save" onClick={handleSaveEdit}>Save</button>

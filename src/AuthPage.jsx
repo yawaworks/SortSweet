@@ -14,7 +14,6 @@ export default function AuthPage({ onAuthSuccess }) {
   const captchaRef = useRef(null);
 
   useEffect(() => {
-    // 1. Check if the user is already authenticated or returning via email confirmation link
     const checkSessionAndHash = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
@@ -22,7 +21,6 @@ export default function AuthPage({ onAuthSuccess }) {
         return;
       }
 
-      // If the URL contains an auth token hash from the email verification redirect
       if (window.location.hash && window.location.hash.includes('access_token=')) {
         const { data, error: hashError } = await supabase.auth.getUser();
         if (!hashError && data?.user) {
@@ -35,7 +33,6 @@ export default function AuthPage({ onAuthSuccess }) {
 
     checkSessionAndHash();
 
-    // 2. Continuous event listener for all authentication state transitions
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         setView('reset-password');
@@ -49,12 +46,24 @@ export default function AuthPage({ onAuthSuccess }) {
     };
   }, [onAuthSuccess]);
 
+  // Reset captcha whenever switching between views
+  const handleViewChange = (newView) => {
+    setView(newView);
+    setError('');
+    setMessage('');
+    setCaptchaToken(null);
+    if (captchaRef.current) {
+      captchaRef.current.resetCaptcha();
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setMessage('');
 
-    if (view === 'register' && !captchaToken) {
+    // Crucial Check: Enforce Captcha validation for both logging in AND signing up
+    if ((view === 'login' || view === 'register') && !captchaToken) {
       setError("Please complete the Captcha puzzle first!");
       return;
     }
@@ -66,11 +75,14 @@ export default function AuthPage({ onAuthSuccess }) {
         const { data, error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
+          options: {
+            captchaToken, // Passes the token to satisfy Supabase security rules
+          }
         });
 
         if (signInError) {
           if (signInError.message.toLowerCase().includes('email not confirmed')) {
-            throw new Error("Your email hasn't been verified yet! Check your spam folder for the confirmation link.");
+            throw new Error("Your email hasn't been verified yet! Check your spam folder.");
           }
           throw signInError;
         }
@@ -83,33 +95,33 @@ export default function AuthPage({ onAuthSuccess }) {
           password,
           options: {
             captchaToken,
-            // Forces Supabase to redirect precisely to your active window's current domain
             emailRedirectTo: window.location.origin, 
           },
         });
 
         if (signUpError) throw signUpError;
         
-        setMessage("Account created! Please check your email inbox to verify and unlock access.");
-        setView('login');
-        if (captchaRef.current) captchaRef.current.resetCaptcha();
-        setCaptchaToken(null);
+        setMessage("Account created! Please check your email inbox to verify.");
+        handleViewChange('login');
 
       } else if (view === 'forgot') {
         const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: window.location.origin,
         });
         if (resetError) throw resetError;
-        setMessage("Recovery link dispatched! Inspect your email inbox instructions.");
+        setMessage("Recovery link dispatched! Inspect your email inbox.");
 
       } else if (view === 'reset-password') {
         const { error: updateError } = await supabase.auth.updateUser({ password });
         if (updateError) throw updateError;
-        setMessage("Password successfully updated! Proceeding to authenticate...");
-        setView('login');
+        setMessage("Password successfully updated!");
+        handleViewChange('login');
       }
     } catch (err) {
-      setError(err.message || "An unexpected validation error occurred.");
+      setError(err.message || "An unexpected error occurred.");
+      // Reset captcha on failure so the user can try again
+      if (captchaRef.current) captchaRef.current.resetCaptcha();
+      setCaptchaToken(null);
     } finally {
       setLoading(false);
     }
@@ -145,14 +157,15 @@ export default function AuthPage({ onAuthSuccess }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#4a3e3d' }}>Password</label>
                 {view === 'login' && (
-                  <button type="button" onClick={() => { setView('forgot'); setError(''); setMessage(''); }} style={{ background: 'none', border: 'none', color: '#ff9aa2', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600, padding: 0 }}>Forgot?</button>
+                  <button type="button" onClick={() => handleViewChange('forgot')} style={{ background: 'none', border: 'none', color: '#ff9aa2', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600, padding: 0 }}>Forgot?</button>
                 )}
               </div>
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required style={{ width: '100%', padding: '0.85rem', border: '1px solid #f5ebe6', borderRadius: '8px', background: '#faf8f5', color: '#4a3e3d', outline: 'none', fontSize: '1rem' }} placeholder="••••••••" />
             </div>
           )}
 
-          {view === 'register' && (
+          {/* Renders the checkbox puzzle box for BOTH log in and sign up loops */}
+          {(view === 'register' || view === 'login') && (
             <div style={{ display: 'flex', justifyContent: 'center', margin: '0.5rem 0' }}>
               <HCaptcha
                 sitekey="10000000-ffff-ffff-ffff-000000000001"
@@ -174,13 +187,13 @@ export default function AuthPage({ onAuthSuccess }) {
 
         <div style={{ marginTop: '2rem', fontSize: '0.9rem', color: '#8c7e7c' }}>
           {view === 'login' && (
-            <>Don't have an account? <button onClick={() => { setView('register'); setError(''); setMessage(''); }} style={{ background: 'none', border: 'none', color: '#ff9aa2', fontWeight: 700, cursor: 'pointer', padding: 0 }}>Register here</button></>
+            <>Don't have an account? <button onClick={() => handleViewChange('register')} style={{ background: 'none', border: 'none', color: '#ff9aa2', fontWeight: 700, cursor: 'pointer', padding: 0 }}>Register here</button></>
           )}
           {view === 'register' && (
-            <>Already initialized? <button onClick={() => { setView('login'); setError(''); setMessage(''); }} style={{ background: 'none', border: 'none', color: '#ff9aa2', fontWeight: 700, cursor: 'pointer', padding: 0 }}>Log In</button></>
+            <>Already initialized? <button onClick={() => handleViewChange('login')} style={{ background: 'none', border: 'none', color: '#ff9aa2', fontWeight: 700, cursor: 'pointer', padding: 0 }}>Log In</button></>
           )}
           {view === 'forgot' && (
-            <button onClick={() => { setView('login'); setError(''); setMessage(''); }} style={{ background: 'none', border: 'none', color: '#ff9aa2', fontWeight: 700, cursor: 'pointer', padding: 0 }}>Back to Log In</button>
+            <button onClick={() => handleViewChange('login')} style={{ background: 'none', border: 'none', color: '#ff9aa2', fontWeight: 700, cursor: 'pointer', padding: 0 }}>Back to Log In</button>
           )}
         </div>
       </div>

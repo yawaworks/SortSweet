@@ -14,7 +14,8 @@ export default function PostDetailSidebar({
   const [editText, setEditText] = useState('');
   const menuRef = useRef(null);
 
-  const currentUserName = currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User';
+  const currentUserName = currentUser?.username || currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User';
+  const currentUserAvatar = currentUser?.avatar || currentUser?.avatarUrl || null;
   const isOp = !item.authorName || item.authorName === currentUserName || item.authorName === 'Original Poster';
 
   useEffect(() => {
@@ -36,19 +37,24 @@ export default function PostDetailSidebar({
   if (!item) return null;
 
   const getPlainTitleText = (htmlString) => {
-    if (!htmlString || !htmlString.includes('<div')) return htmlString;
+    if (!htmlString) return '';
     const tempElement = document.createElement('div');
     tempElement.innerHTML = htmlString;
     const titleEl = tempElement.querySelector('.post-compiled-title');
-    return titleEl ? titleEl.textContent || titleEl.innerText : '';
+    if (titleEl) return titleEl.textContent || titleEl.innerText || '';
+    // Fallback: no compiled wrapper — extract first heading or return empty
+    const heading = tempElement.querySelector('h1, h2, h3');
+    return heading ? heading.textContent || '' : '';
   };
 
   const getBodyHtmlContent = (htmlString) => {
-    if (!htmlString || !htmlString.includes('<div')) return htmlString;
+    if (!htmlString) return '';
     const tempElement = document.createElement('div');
     tempElement.innerHTML = htmlString;
     const bodyEl = tempElement.querySelector('.post-compiled-body');
-    return bodyEl ? bodyEl.innerHTML : htmlString;
+    if (bodyEl) return bodyEl.innerHTML;
+    // Fallback: no compiled wrapper — return full HTML as body
+    return htmlString;
   };
 
   const plainTextLabel = getPlainTitleText(item.text);
@@ -61,13 +67,16 @@ export default function PostDetailSidebar({
     }
   };
 
-  const formattedTimestamp = item.timestamp || new Date().toLocaleString([], {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  const formattedTimestamp = React.useMemo(() => {
+    return item.timestamp || new Date().toLocaleString([], {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id, item.timestamp]);
 
   const tagLabels = {
     now: 'Now',
@@ -135,11 +144,13 @@ export default function PostDetailSidebar({
       <div className="sidebar-scrollable-body-content">
         <div className="sidebar-author-op-profile-row">
           <div className="sidebar-author-avatar-circle">
-            {item.authorAvatar && <img src={item.authorAvatar} alt="" />}
+            {(item.authorAvatar || currentUserAvatar) && (
+              <img src={item.authorAvatar || currentUserAvatar} alt="" />
+            )}
           </div>
           <div className="sidebar-author-identity-info">
-            <span className="sidebar-author-display-name">{item.authorName || 'Original Poster'}</span>
-            <span className="sidebar-author-handle-sub">@op_entry</span>
+            <span className="sidebar-author-display-name">{item.authorName || currentUserName}</span>
+            <span className="sidebar-author-handle-sub">@{(item.authorName || currentUserName).toLowerCase().replace(/\s+/g, '_')}</span>
           </div>
         </div>
 

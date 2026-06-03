@@ -4,7 +4,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import './JournalEditor.css';
 
-export default function BrainDumpInput({ onAddItem, onSaveDraft, activeDraft, onClearActiveDraft }) {
+export default function BrainDumpInput({ onAddItem, onSaveDraft, activeDraft, onClearActiveDraft, currentUser }) {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('now');
 
@@ -108,7 +108,15 @@ export default function BrainDumpInput({ onAddItem, onSaveDraft, activeDraft, on
       <form onSubmit={triggerSubmitPost} className="form-layout">
         <div className="main-row">
           <div className="avatar-column">
-            <div className="user-avatar"></div>
+            <div className="user-avatar" style={currentUser?.avatar || currentUser?.avatarUrl ? { backgroundImage: 'none', padding: 0 } : {}}>
+              {(currentUser?.avatar || currentUser?.avatarUrl) && (
+                <img
+                  src={currentUser.avatar || currentUser.avatarUrl}
+                  alt="avatar"
+                  style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', display: 'block' }}
+                />
+              )}
+            </div>
           </div>
           
           <div className="editor-column">

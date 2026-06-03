@@ -91,8 +91,10 @@ export default function ProfileDashboard({ user, onUpdateUser, onClose }) {
     const updatedUser = {
       ...user,
       username: data.username,
+      displayName: data.username,
       bio: data.bio,
-      avatar: data.avatar_url
+      avatar: data.avatar_url || avatarUrl,
+      avatarUrl: data.avatar_url || avatarUrl,
     };
 
     onUpdateUser(updatedUser);

@@ -63,6 +63,7 @@ export default function PostDetailSidebar({
 
   const plainTextLabel = getPlainTitleText(item.text);
   const bodyContentHtml = getBodyHtmlContent(item.text);
+  const bodyContentWithoutImages = bodyContentHtml.replace(/<img[^>]*>/gi, '');
 
   const formattedTimestamp = React.useMemo(() => {
     return item.timestamp || new Date().toLocaleString([], {
@@ -185,14 +186,22 @@ export default function PostDetailSidebar({
         </div>
 
         {/* Body content */}
-        {!isEditing && (
-          <div className="sidebar-compiled-html-body-view rich-text-display-pane">
-            <div dangerouslySetInnerHTML={{ __html: bodyContentHtml }} />
-            {item.image && (
-              <img src={item.image} alt="Attachment" className="sidebar-body-embedded-media" />
-            )}
-          </div>
-        )}
+{!isEditing && (
+  <div className="sidebar-compiled-html-body-view rich-text-display-pane">
+    <div
+      dangerouslySetInnerHTML={{
+        __html: bodyContentWithoutImages
+      }}
+    />
+    {item.image && (
+      <img
+        src={item.image}
+        alt="Attachment"
+        className="sidebar-body-embedded-media"
+      />
+    )}
+  </div>
+)}
 
         {/* Divider before comments */}
         <div className="sidebar-divider" style={{ marginTop: 20 }} />

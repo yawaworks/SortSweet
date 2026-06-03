@@ -155,7 +155,7 @@ export default function AuthPage({ onAuthSuccess }) {
             <div style={{ display: 'flex', justifyContent: 'center', margin: '0.5rem 0' }}>
               <HCaptcha
                 ref={captchaRef}
-                sitekey="10000000-ffff-ffff-ffff-ffffffffffff" 
+                sitekey={import.meta.env.VITE_HCAPTCHA_SITE_KEY}
                 onVerify={(token) => setCaptchaToken(token)}
                 onExpire={() => setCaptchaToken(null)}
               />

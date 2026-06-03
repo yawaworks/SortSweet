@@ -1,0 +1,249 @@
+import React, { useState, useEffect } from 'react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Image from '@tiptap/extension-image';
+import './JournalEditor.css';
+
+export default function BrainDumpInput({ onAddItem, onSaveDraft, activeDraft, onClearActiveDraft }) {
+  const [title, setTitle] = useState('');
+  const [category, setCategory] = useState('now');
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Image.configure({
+        allowBase64: true,
+      }),
+    ],
+    content: '',
+    placeholder: "What's happening?",
+  });
+
+  useEffect(() => {
+    if (activeDraft && editor) {
+      setTitle(activeDraft.title || '');
+      setCategory(activeDraft.category || 'now');
+      editor.commands.setContent(activeDraft.bodyHtml || '');
+    }
+  }, [activeDraft, editor]);
+
+  if (!editor) return null;
+
+    const addImage = () => {
+  const input = document.createElement('input');
+
+  input.type = 'file';
+  input.accept = 'image/*';
+
+  input.onchange = (e) => {
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      editor
+        .chain()
+        .focus()
+        .setImage({
+          src: reader.result,
+        })
+        .run();
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  input.click();
+};
+
+  const triggerSubmitPost = (e) => {
+    e.preventDefault();
+    if (!title.trim() && editor.isEmpty) return;
+
+    const htmlContent = editor.getHTML();
+    
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlContent, 'text/html');
+    const firstImg = doc.querySelector('img');
+    const extractedImageUrl = firstImg ? firstImg.getAttribute('src') : null;
+
+    const finalCompiledPayload = `
+      <div class="journal-post-compiled">
+        <h2 class="post-compiled-title">${title.trim() ? title : 'Untitled Entry'}</h2>
+        <div class="post-compiled-body rich-text-display-pane">${htmlContent}</div>
+      </div>
+    `;
+
+    if (typeof onAddItem === 'function') {
+      onAddItem(finalCompiledPayload, category, extractedImageUrl);
+    }
+    resetFormState();
+  };
+
+  const triggerSaveDraft = () => {
+    if (!title.trim() && editor.isEmpty) return;
+
+    onSaveDraft({
+      id: activeDraft?.id || crypto.randomUUID(),
+      title,
+      bodyHtml: editor.getHTML(),
+      category,
+      savedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    });
+
+    resetFormState();
+  };
+
+  const resetFormState = () => {
+    setTitle('');
+    editor.commands.setContent('');
+    setCategory('now');
+    onClearActiveDraft();
+  };
+
+  return (
+    <div className="editor-container">
+      <form onSubmit={triggerSubmitPost} className="form-layout">
+        <div className="main-row">
+          <div className="avatar-column">
+            <div className="user-avatar"></div>
+          </div>
+          
+          <div className="editor-column">
+            <div className="title-wrapper">
+              <input 
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Title (optional)"
+                className="title-field"
+                maxLength={100}
+              />
+              {title.length > 0 && <span className="title-char-counter">{title.length}/100</span>}
+            </div>
+
+            <div className="editor-content">
+              <EditorContent editor={editor} />
+            </div>
+          </div>
+        </div>
+
+        <div className="category-row">
+          <span className="tag-label-lead">Tag:</span>
+          {['now', 'delegate', 'someday'].map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              className={`tag-pill ${category === tag ? 'active-' + tag : ''}`}
+              onClick={() => setCategory(tag)}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+
+        <div className="footer-actions">
+          <div className="toolbar">
+            <button
+              type="button"
+              onClick={() => editor.chain().focus().toggleBold().run()}
+              className={editor.isActive('bold') ? 'tool-active' : ''}
+              title="Bold"
+            >
+              B
+            </button>
+            <button
+              type="button"
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+              className={editor.isActive('italic') ? 'tool-active' : ''}
+              title="Italic"
+            >
+              <i>i</i>
+            </button>
+            <button
+              type="button"
+              onClick={() => editor.chain().focus().toggleStrike().run()}
+              className={editor.isActive('strike') ? 'tool-active' : ''}
+              title="Strikethrough"
+            >
+              <s>S</s>
+            </button>
+            <button
+              type="button"
+              onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+              className={editor.isActive('heading', { level: 2 }) ? 'tool-active' : ''}
+              title="Heading 1"
+            >
+              h1
+            </button>
+            <button
+              type="button"
+              onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+              className={editor.isActive('heading', { level: 3 }) ? 'tool-active' : ''}
+              title="Heading 2"
+            >
+              h2
+            </button>
+
+            <div className="divider" />
+
+            <button type="button" onClick={addImage} title="Insert Image">
+              🖼️
+            </button>
+
+            <div className="divider" />
+
+            <button
+              type="button"
+              onClick={() => editor.chain().focus().toggleBulletList().run()}
+              className={editor.isActive('bulletList') ? 'tool-active' : ''}
+              title="Bullet List"
+            >
+              • List
+            </button>
+            <button
+              type="button"
+              onClick={() => editor.chain().focus().toggleOrderedList().run()}
+              className={editor.isActive('orderedList') ? 'tool-active' : ''}
+              title="Ordered List"
+            >
+              1. List
+            </button>
+            <button
+              type="button"
+              onClick={() => editor.chain().focus().toggleBlockquote().run()}
+              className={editor.isActive('blockquote') ? 'tool-active' : ''}
+              title="Blockquote"
+            >
+              “ ”
+            </button>
+            <button
+              type="button"
+              onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+              className={editor.isActive('codeBlock') ? 'tool-active' : ''}
+              title="Code Block"
+            >
+              &lt;/&gt;
+            </button>
+          </div>
+
+          <div className="actions-right">
+            {activeDraft && (
+              <button type="button" className="text-cancel-btn" onClick={resetFormState}>
+                Cancel
+              </button>
+            )}
+            <button type="button" className="draft-save-btn" onClick={triggerSaveDraft}>
+              Save Draft
+            </button>
+            <button type="submit" className="submit-post-btn" disabled={!title.trim() && editor.isEmpty}>
+              Post
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}

@@ -53,45 +53,65 @@ export default function ProfileDashboard({ user, onUpdateUser, onClose }) {
   };
 
   const handleProfileSave = async (e) => {
-    e.preventDefault();
-    if (!username.trim()) return;
-    
-    setIsSaving(true);
-    setStatusMessage({ text: '', type: '' });
+  e.preventDefault();
 
-    try {
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError || !authUser) {
-        throw new Error("Your session expired or was not found. Please log out and back in.");
-      }
+  if (!username.trim()) return;
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .upsert({
+  setIsSaving(true);
+  setStatusMessage({ text: '', type: '' });
+
+  try {
+    const {
+      data: { user: authUser },
+      error: authError
+    } = await supabase.auth.getUser();
+
+    if (authError || !authUser) {
+      throw new Error('Your session expired or was not found. Please log out and back in.');
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .upsert(
+        {
           id: authUser.id,
           username: username.trim(),
           bio: bio.trim(),
           avatar_url: avatarUrl
-        });
+        },
+        {
+          onConflict: 'id'
+        }
+      )
+      .select()
+      .single();
 
-      if (error) throw error;
+    if (error) throw error;
 
-      const updatedUser = {
-        ...user,
-        username: username.trim(),
-        bio: bio.trim(),
-        avatar: avatarUrl
-      };
+    const updatedUser = {
+      ...user,
+      username: data.username,
+      bio: data.bio,
+      avatar: data.avatar_url
+    };
 
-      setStatusMessage({ text: 'Changes saved successfully! ✨', type: 'success' });
-      onUpdateUser(updatedUser);
-    } catch (err) {
-      setStatusMessage({ text: err.message || 'Failed to save settings. Please try again.', type: 'error' });
-    } finally {
-      setIsSaving(false);
-    }
-  };
+    onUpdateUser(updatedUser);
+
+    setStatusMessage({
+      text: 'Changes saved successfully! ✨',
+      type: 'success'
+    });
+  } catch (err) {
+    console.error('Profile save error:', err);
+
+    setStatusMessage({
+      text: err.message || 'Failed to save settings. Please try again.',
+      type: 'error'
+    });
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   return (
     <div className="profile-dashboard-overlay">

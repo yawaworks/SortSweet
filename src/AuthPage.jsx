@@ -14,12 +14,40 @@ export default function AuthPage({ onAuthSuccess }) {
   const captchaRef = useRef(null);
 
   useEffect(() => {
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    // 1. Check if the user is already authenticated or returning via email confirmation link
+    const checkSessionAndHash = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        onAuthSuccess(session.user);
+        return;
+      }
+
+      // If the URL contains an auth token hash from the email verification redirect
+      if (window.location.hash && window.location.hash.includes('access_token=')) {
+        const { data, error: hashError } = await supabase.auth.getUser();
+        if (!hashError && data?.user) {
+          onAuthSuccess(data.user);
+        } else if (hashError) {
+          setError("Session verification failed: " + hashError.message);
+        }
+      }
+    };
+
+    checkSessionAndHash();
+
+    // 2. Continuous event listener for all authentication state transitions
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         setView('reset-password');
+      } else if (event === 'SIGNED_IN' && session) {
+        onAuthSuccess(session.user);
       }
     });
-  }, []);
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [onAuthSuccess]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -41,129 +69,99 @@ export default function AuthPage({ onAuthSuccess }) {
         });
 
         if (signInError) {
-          if (signInError.message === "Invalid login credentials") {
-            setError("Account not found or password incorrect. Try registering first!");
-          } else {
-            setError(signInError.message);
+          if (signInError.message.toLowerCase().includes('email not confirmed')) {
+            throw new Error("Your email hasn't been verified yet! Check your spam folder for the confirmation link.");
           }
-        } else if (data.user) {
-          const profileName = data.user.user_metadata?.username || data.user.email.split('@')[0];
-          onAuthSuccess({ username: profileName, email: data.user.email });
+          throw signInError;
         }
+
+        if (data?.user) onAuthSuccess(data.user);
 
       } else if (view === 'register') {
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: window.location.origin,
-            captchaToken: captchaToken,
-            data: { username: email.split('@')[0] }
-          }
+            captchaToken,
+            // Forces Supabase to redirect precisely to your active window's current domain
+            emailRedirectTo: window.location.origin, 
+          },
         });
 
         if (signUpError) throw signUpError;
-        if (data.user) {
-          setMessage('Registration successful! Please verify your inbox.');
-          setCaptchaToken(null);
-          captchaRef.current?.resetCaptcha();
-        }
+        
+        setMessage("Account created! Please check your email inbox to verify and unlock access.");
+        setView('login');
+        if (captchaRef.current) captchaRef.current.resetCaptcha();
+        setCaptchaToken(null);
 
       } else if (view === 'forgot') {
         const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: window.location.origin,
         });
-
         if (resetError) throw resetError;
-        setMessage('Password reset link sent! Check your email inbox shortly.');
+        setMessage("Recovery link dispatched! Inspect your email inbox instructions.");
 
       } else if (view === 'reset-password') {
-        const { error: updateError } = await supabase.auth.updateUser({
-          password: password
-        });
-
+        const { error: updateError } = await supabase.auth.updateUser({ password });
         if (updateError) throw updateError;
-        setMessage('Your password has been securely updated! Moving to login panel...');
-        setTimeout(() => {
-          setView('login');
-          setPassword('');
-        }, 2500);
+        setMessage("Password successfully updated! Proceeding to authenticate...");
+        setView('login');
       }
     } catch (err) {
-      setError(err.message);
-      setCaptchaToken(null);
-      captchaRef.current?.resetCaptcha();
+      setError(err.message || "An unexpected validation error occurred.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="auth-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#faf6f5' }}>
-      <div className="auth-card" style={{ background: '#ffffff', padding: '2.5rem', borderRadius: '16px', boxShadow: '0 8px 24px rgba(74, 62, 61, 0.05)', width: '100%', maxWidth: '420px', textAlign: 'center' }}>
-        
-        <h2 style={{ fontSize: '2rem', fontWeight: 800, color: '#4a3e3d', marginBottom: '0.5rem' }}>
-          Sort<span style={{ color: '#ff9aa2' }}>Sweet</span>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#faf8f5', fontFamily: 'system-ui' }}>
+      <div style={{ background: 'white', padding: '2.5rem', borderRadius: '16px', boxShadow: '0 8px 24px rgba(74,62,61,0.05)', width: '100%', maxWidth: '400px', textAlign: 'center', border: '1px solid #f5ebe6' }}>
+        <h2 style={{ color: '#4a3e3d', marginBottom: '0.5rem', fontSize: '1.75rem', fontWeight: 800 }}>
+          {view === 'login' ? 'Welcome Back' : 
+           view === 'register' ? 'Create Space' : 
+           view === 'forgot' ? 'Recover Account' : 'New Password'}
         </h2>
-        
-        <p style={{ color: '#8c7e7c', fontSize: '0.95rem', marginBottom: '2rem' }}>
-          {view === 'login' && "Welcome back! Ready to organize?"}
-          {view === 'register' && "Create your private journal base."}
-          {view === 'forgot' && "Recover your secret safe credentials."}
-          {view === 'reset-password' && "Type your brand new security password."}
+        <p style={{ color: '#8c7e7d', marginBottom: '2rem', fontSize: '0.95rem' }}>
+          {view === 'login' ? 'Step into your stream of thought' : 
+           view === 'register' ? 'Begin mapping out your day-to-day dump' : 
+           view === 'forgot' ? 'Enter your email to receive a reset token' : 'Set a strong password for your profile'}
         </p>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', textAlign: 'left' }}>
-          
+        {error && <div style={{ background: '#fff5f5', color: '#ff8b94', padding: '0.75rem', borderRadius: '8px', marginBottom: '1.5rem', fontSize: '0.9rem', textAlign: 'left', border: '1px solid #ffe3e3', fontWeight: 500 }}>{error}</div>}
+        {message && <div style={{ background: '#eaf5ed', color: '#6d9478', padding: '0.75rem', borderRadius: '8px', marginBottom: '1.5rem', fontSize: '0.9rem', textAlign: 'left', border: '1px solid #d1ebd9', fontWeight: 500 }}>{message}</div>}
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
           {view !== 'reset-password' && (
-            <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#8c7e7c', marginBottom: '0.4rem', textTransform: 'uppercase' }}>Email Address</label>
-              <input 
-                type="email" 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                required 
-                style={{ width: '100%', padding: '0.8rem 1rem', borderRadius: '8px', border: '1px solid #f5ebe6', background: '#fff9f8', outline: 'none', fontSize: '1rem' }}
-              />
+            <div style={{ textAlign: 'left' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#4a3e3d', marginBottom: '0.4rem' }}>Email Address</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: '100%', padding: '0.85rem', border: '1px solid #f5ebe6', borderRadius: '8px', background: '#faf8f5', color: '#4a3e3d', outline: 'none', fontSize: '1rem' }} placeholder="you@example.com" />
             </div>
           )}
 
-          {(view === 'login' || view === 'register' || view === 'reset-password') && (
-            <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#8c7e7c', marginBottom: '0.4rem', textTransform: 'uppercase' }}>
-                {view === 'reset-password' ? "New Password" : "Password"}
-              </label>
-              <input 
-                type="password" 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                required 
-                style={{ width: '100%', padding: '0.8rem 1rem', borderRadius: '8px', border: '1px solid #f5ebe6', background: '#fff9f8', outline: 'none', fontSize: '1rem' }}
-              />
-            </div>
-          )}
-
-          {view === 'login' && (
-            <div style={{ textAlign: 'right', marginTop: '-0.5rem' }}>
-              <button type="button" onClick={() => { setView('forgot'); setError(''); setMessage(''); }} style={{ background: 'none', border: 'none', color: '#ff9aa2', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 600 }}>
-                Forgot Password?
-              </button>
+          {view !== 'forgot' && (
+            <div style={{ textAlign: 'left' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#4a3e3d' }}>Password</label>
+                {view === 'login' && (
+                  <button type="button" onClick={() => { setView('forgot'); setError(''); setMessage(''); }} style={{ background: 'none', border: 'none', color: '#ff9aa2', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600, padding: 0 }}>Forgot?</button>
+                )}
+              </div>
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required style={{ width: '100%', padding: '0.85rem', border: '1px solid #f5ebe6', borderRadius: '8px', background: '#faf8f5', color: '#4a3e3d', outline: 'none', fontSize: '1rem' }} placeholder="••••••••" />
             </div>
           )}
 
           {view === 'register' && (
             <div style={{ display: 'flex', justifyContent: 'center', margin: '0.5rem 0' }}>
               <HCaptcha
-                ref={captchaRef}
-                sitekey={import.meta.env.VITE_HCAPTCHA_SITE_KEY}
+                sitekey="10000000-ffff-ffff-ffff-000000000001"
                 onVerify={(token) => setCaptchaToken(token)}
                 onExpire={() => setCaptchaToken(null)}
+                ref={captchaRef}
               />
             </div>
           )}
-
-          {error && <p style={{ color: '#ffb7b2', fontSize: '0.85rem', fontWeight: 600, margin: 0 }}>{error}</p>}
-          {message && <p style={{ color: '#b5e2b9', fontSize: '0.85rem', fontWeight: 600, margin: 0 }}>{message}</p>}
 
           <button type="submit" disabled={loading} style={{ width: '100%', padding: '1rem', background: '#ff9aa2', color: 'white', border: 'none', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 700, cursor: 'pointer', marginTop: '0.5rem', transition: 'background 0.2s' }}>
             {loading ? 'Processing...' : (
@@ -182,10 +180,9 @@ export default function AuthPage({ onAuthSuccess }) {
             <>Already initialized? <button onClick={() => { setView('login'); setError(''); setMessage(''); }} style={{ background: 'none', border: 'none', color: '#ff9aa2', fontWeight: 700, cursor: 'pointer', padding: 0 }}>Log In</button></>
           )}
           {view === 'forgot' && (
-            <button onClick={() => { setView('login'); setError(''); setMessage(''); }} style={{ background: 'none', border: 'none', color: '#ff9aa2', fontWeight: 700, cursor: 'pointer', padding: 0 }}>Return to Login</button>
+            <button onClick={() => { setView('login'); setError(''); setMessage(''); }} style={{ background: 'none', border: 'none', color: '#ff9aa2', fontWeight: 700, cursor: 'pointer', padding: 0 }}>Back to Log In</button>
           )}
         </div>
-
       </div>
     </div>
   );

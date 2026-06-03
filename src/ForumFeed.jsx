@@ -21,9 +21,30 @@ export default function ForumFeed({ items, activePostId, onSelectPost, onMoveIte
   );
 }
 
+function parseCompiledHtml(htmlString) {
+  if (!htmlString) return { title: '', bodyHtml: '' };
+  const el = document.createElement('div');
+  el.innerHTML = htmlString;
+  const titleEl = el.querySelector('.post-compiled-title');
+  const bodyEl = el.querySelector('.post-compiled-body');
+  return {
+    title: titleEl ? (titleEl.textContent || titleEl.innerText || '').trim() : '',
+    bodyHtml: bodyEl ? bodyEl.innerHTML : htmlString,
+  };
+}
+
 function ForumPost({ item, isActive, onSelect, onMoveItem, onDeleteItem, onUpdateItem }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(item.text);
+
+  const { title, bodyHtml } = parseCompiledHtml(item.text);
+
+  // Plain text preview of body (strip tags)
+  const bodyPreview = (() => {
+    const el = document.createElement('div');
+    el.innerHTML = bodyHtml;
+    return (el.textContent || el.innerText || '').trim().slice(0, 120);
+  })();
 
   const handleSave = (e) => {
     e.stopPropagation();
@@ -33,11 +54,7 @@ function ForumPost({ item, isActive, onSelect, onMoveItem, onDeleteItem, onUpdat
     }
   };
 
-  const tagLabels = {
-    now: 'Now',
-    delegate: 'Delegate',
-    someday: 'Later'
-  };
+  const tagLabels = { now: 'Now', delegate: 'Delegate', someday: 'Later' };
 
   return (
     <motion.div 
@@ -52,7 +69,7 @@ function ForumPost({ item, isActive, onSelect, onMoveItem, onDeleteItem, onUpdat
       <div className="post-main-content">
         <div className="post-title-row">
           <span className={`tag-pill active-${item.category}`}>{tagLabels[item.category]}</span>
-          
+
           {isEditing ? (
             <input 
               type="text"
@@ -64,13 +81,19 @@ function ForumPost({ item, isActive, onSelect, onMoveItem, onDeleteItem, onUpdat
               autoFocus
             />
           ) : (
-            <div 
-              className="rich-text-display-pane"
-              dangerouslySetInnerHTML={{ __html: item.text }} 
-            />
+            <>
+              <h3 className="post-compiled-title" style={{ margin: '4px 0 2px' }}>
+                {title || 'Untitled Entry'}
+              </h3>
+              {bodyPreview && (
+                <p style={{ margin: 0, fontSize: 14, color: '#536471', lineHeight: 1.4 }}>
+                  {bodyPreview}{bodyPreview.length === 120 ? '…' : ''}
+                </p>
+              )}
+            </>
           )}
         </div>
-        
+
         <div className="post-meta">
           <span>{item.comments ? item.comments.length : 0} comments</span>
         </div>
@@ -78,7 +101,7 @@ function ForumPost({ item, isActive, onSelect, onMoveItem, onDeleteItem, onUpdat
 
       <div className="post-right-aside" onClick={(e) => e.stopPropagation()}>
         {item.image && (
-          <img src={item.image} alt="Uploaded Attachment" className="post-thumbnail" />
+          <img src={item.image} alt="Attachment" className="post-thumbnail" />
         )}
 
         <div className="post-controls">

@@ -94,11 +94,18 @@ export default function App() {
     setActivePostId(null);
   };
 
-  const handleAddItem = (content, category) => {
+  const handleAddItem = (content, category, imageUrl) => {
     const newItem = {
       id: crypto.randomUUID(),
-      content,
+      text: content,
       category,
+      image: imageUrl || null,
+      authorName: user?.username || user?.displayName || 'Original Poster',
+      authorAvatar: user?.avatar || user?.avatarUrl || '',
+      timestamp: new Date().toLocaleString([], {
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      }),
       comments: []
     };
     setItems(prev => [newItem, ...prev]);
@@ -142,7 +149,7 @@ export default function App() {
     setItems(prev => prev.filter(item => item.id !== id));
   };
 
-  const handleAddComment = (postId, commentText, authorName) => {
+  const handleAddComment = (postId, commentText, authorName, authorAvatar) => {
     setItems(prev => prev.map(item => {
       if (item.id === postId) {
         return {
@@ -152,8 +159,12 @@ export default function App() {
             { 
               id: crypto.randomUUID(), 
               text: commentText, 
-              author: authorName, 
-              timestamp: 'Just now' 
+              author: authorName,
+              authorAvatar: authorAvatar || '',
+              timestamp: new Date().toLocaleString([], {
+                month: 'short', day: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+              })
             }
           ]
         };
@@ -210,6 +221,7 @@ export default function App() {
         onSaveDraft={handleSaveDraft}
         activeDraft={activeDraft}
         onClearActiveDraft={() => setActiveDraft(null)}
+        currentUser={user}
       />
 
       <div className={`workspace-layout ${activePost ? 'split-view' : ''}`}>

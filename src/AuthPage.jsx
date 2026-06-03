@@ -168,7 +168,7 @@ export default function AuthPage({ onAuthSuccess }) {
           {(view === 'register' || view === 'login') && (
             <div style={{ display: 'flex', justifyContent: 'center', margin: '0.5rem 0' }}>
               <HCaptcha
-                sitekey="10000000-ffff-ffff-ffff-000000000001"
+                sitekey="25e6eb70-ad04-4aca-89de-71a0630ea790"
                 onVerify={(token) => setCaptchaToken(token)}
                 onExpire={() => setCaptchaToken(null)}
                 ref={captchaRef}

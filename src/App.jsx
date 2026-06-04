@@ -13,11 +13,10 @@ export default function App() {
     const savedUser = localStorage.getItem('sortsweet-user');
     return savedUser ? JSON.parse(savedUser) : null;
   });
+  const [userId, setUserId] = useState(null);
 
-  const [items, setItems] = useState(() => {
-    const saved = localStorage.getItem('sortsweet-items');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [items, setItems] = useState([]);
+  const [itemsLoading, setItemsLoading] = useState(false);
 
   const [drafts, setDrafts] = useState(() => {
     const savedDrafts = localStorage.getItem('sortsweet-drafts');
@@ -30,11 +29,10 @@ export default function App() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showCreatePanel, setShowCreatePanel] = useState(false);
 
-  // Feed controls
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('newest'); // newest | oldest | category
-  const [filterCategory, setFilterCategory] = useState('all'); // all | now | delegate | someday
-  const [viewMode, setViewMode] = useState('list'); // list | gallery
+  const [sortBy, setSortBy] = useState('newest');
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [viewMode, setViewMode] = useState('list');
   const [showSortPanel, setShowSortPanel] = useState(false);
   const sortPanelRef = React.useRef(null);
 
@@ -49,26 +47,71 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('sortsweet-items', JSON.stringify(items));
-  }, [items]);
-
-  useEffect(() => {
     localStorage.setItem('sortsweet-drafts', JSON.stringify(drafts));
   }, [drafts]);
 
+  // ── Auth listener ──
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) fetchOrCreateProfile(session.user);
+      if (session?.user) {
+        setUserId(session.user.id);
+        fetchOrCreateProfile(session.user);
+      }
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user) fetchOrCreateProfile(session.user);
-      else if (event === 'SIGNED_OUT') {
+      if (session?.user) {
+        setUserId(session.user.id);
+        fetchOrCreateProfile(session.user);
+      } else if (event === 'SIGNED_OUT') {
         setUser(null);
+        setUserId(null);
+        setItems([]);
         localStorage.removeItem('sortsweet-user');
       }
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  // ── Load posts when userId is available ──
+  useEffect(() => {
+    if (userId) fetchPosts(userId);
+  }, [userId]);
+
+  // ── Fetch all posts for this user ──
+  const fetchPosts = async (uid) => {
+    setItemsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('user_id', uid)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setItems((data || []).map(rowToItem));
+    } catch (err) {
+      console.error('fetchPosts error:', err);
+    } finally {
+      setItemsLoading(false);
+    }
+  };
+
+  // ── DB row → app item ──
+  const rowToItem = (row) => ({
+    id: row.id,
+    text: row.text,
+    category: row.category,
+    image: row.image_url || null,
+    authorName: row.author_name,
+    authorAvatar: row.author_avatar || '',
+    timestamp: row.created_at
+      ? new Date(row.created_at).toLocaleString([], {
+          month: 'short', day: 'numeric', year: 'numeric',
+          hour: '2-digit', minute: '2-digit'
+        })
+      : '',
+    createdAt: row.created_at ? new Date(row.created_at).getTime() : 0,
+    comments: row.comments || [],
+  });
 
   const fetchOrCreateProfile = async (authUser) => {
     try {
@@ -91,30 +134,113 @@ export default function App() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    setUserId(null);
+    setItems([]);
     localStorage.removeItem('sortsweet-user');
     setActivePostId(null);
   };
 
-  const handleAddItem = (content, category, imageUrl) => {
+  // ── Add post → Supabase insert ──
+  const handleAddItem = async (content, category, imageUrl) => {
     const newItem = {
       id: crypto.randomUUID(),
       text: content,
       category,
       image: imageUrl || null,
-      authorName: user?.username || user?.displayName || 'Original Poster',
-      authorAvatar: user?.avatar || user?.avatarUrl || '',
+      authorName: user?.username || 'Original Poster',
+      authorAvatar: user?.avatar || '',
       timestamp: new Date().toLocaleString([], {
         month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
       }),
       createdAt: Date.now(),
-      comments: []
+      comments: [],
     };
+
+    // Optimistic UI
     setItems(prev => [newItem, ...prev]);
     setShowCreatePanel(false);
     if (activeDraft) {
       setDrafts(prev => prev.filter(d => d.id !== activeDraft.id));
       setActiveDraft(null);
     }
+
+    try {
+      const { error } = await supabase.from('posts').insert({
+        id: newItem.id,
+        user_id: userId,
+        text: newItem.text,
+        category: newItem.category,
+        image_url: newItem.image,
+        author_name: newItem.authorName,
+        author_avatar: newItem.authorAvatar,
+        comments: [],
+      });
+      if (error) throw error;
+    } catch (err) {
+      console.error('insert error:', err);
+      setItems(prev => prev.filter(i => i.id !== newItem.id));
+      alert('Failed to save post: ' + err.message);
+    }
+  };
+
+  // ── Update post → Supabase update ──
+  const handleUpdateItem = async (id, updatedFields) => {
+    // Optimistic UI
+    setItems(prev => prev.map(item => item.id === id ? { ...item, ...updatedFields } : item));
+
+    try {
+      const dbFields = {};
+      if ('text' in updatedFields) dbFields.text = updatedFields.text;
+      if ('category' in updatedFields) dbFields.category = updatedFields.category;
+      if ('comments' in updatedFields) dbFields.comments = updatedFields.comments;
+
+      if (Object.keys(dbFields).length === 0) return;
+
+      const { error } = await supabase
+        .from('posts')
+        .update(dbFields)
+        .eq('id', id)
+        .eq('user_id', userId);
+      if (error) throw error;
+    } catch (err) {
+      console.error('update error:', err);
+    }
+  };
+
+  // ── Delete post → Supabase delete ──
+  const handleDeleteItem = async (id) => {
+    if (activePostId === id) setActivePostId(null);
+    setItems(prev => prev.filter(item => item.id !== id));
+    try {
+      const { error } = await supabase.from('posts').delete().eq('id', id).eq('user_id', userId);
+      if (error) throw error;
+    } catch (err) {
+      console.error('delete error:', err);
+    }
+  };
+
+  const handleMoveItem = (id, newCategory) => handleUpdateItem(id, { category: newCategory });
+
+  // ── Comments (stored as JSON array in the post row) ──
+  const handleAddComment = async (postId, commentText, authorName, authorAvatar) => {
+    const post = items.find(i => i.id === postId);
+    if (!post) return;
+    const newComment = {
+      id: crypto.randomUUID(),
+      text: commentText,
+      author: authorName,
+      authorAvatar: authorAvatar || '',
+      timestamp: new Date().toLocaleString([], {
+        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+      }),
+    };
+    await handleUpdateItem(postId, { comments: [...(post.comments || []), newComment] });
+  };
+
+  const handleDeleteComment = async (postId, commentId) => {
+    const post = items.find(i => i.id === postId);
+    if (!post) return;
+    await handleUpdateItem(postId, { comments: (post.comments || []).filter(c => c.id !== commentId) });
   };
 
   const handleSaveDraft = (draftObject) => {
@@ -131,42 +257,11 @@ export default function App() {
     if (activeDraft?.id === draftId) setActiveDraft(null);
   };
 
-  const handleMoveItem = (id, newCategory) =>
-    setItems(prev => prev.map(item => item.id === id ? { ...item, category: newCategory } : item));
-
-  const handleUpdateItem = (id, updatedFields) =>
-    setItems(prev => prev.map(item => item.id === id ? { ...item, ...updatedFields } : item));
-
-  const handleDeleteItem = (id) => {
-    if (activePostId === id) setActivePostId(null);
-    setItems(prev => prev.filter(item => item.id !== id));
-  };
-
-  const handleAddComment = (postId, commentText, authorName, authorAvatar) => {
-    setItems(prev => prev.map(item => {
-      if (item.id !== postId) return item;
-      return {
-        ...item,
-        comments: [...(item.comments || []), {
-          id: crypto.randomUUID(), text: commentText, author: authorName,
-          authorAvatar: authorAvatar || '',
-          timestamp: new Date().toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-        }]
-      };
-    }));
-  };
-
-  const handleDeleteComment = (postId, commentId) =>
-    setItems(prev => prev.map(item =>
-      item.id !== postId ? item : { ...item, comments: (item.comments || []).filter(c => c.id !== commentId) }
-    ));
-
   const handleUpdateUserProfile = (updatedUserObj) => {
     setUser(updatedUserObj);
     localStorage.setItem('sortsweet-user', JSON.stringify(updatedUserObj));
   };
 
-  // Filtered + sorted items
   const displayedItems = useMemo(() => {
     let result = [...items];
     if (searchQuery.trim()) {
@@ -204,7 +299,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* ── Collapsed search/create bar ── */}
       {!showCreatePanel && (
         <div className="search-create-bar">
           <span className="search-icon-inline">🔍</span>
@@ -214,13 +308,10 @@ export default function App() {
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
           />
-          <button className="new-post-btn" onClick={() => setShowCreatePanel(true)}>
-            💬 New Post
-          </button>
+          <button className="new-post-btn" onClick={() => setShowCreatePanel(true)}>💬 New Post</button>
         </div>
       )}
 
-      {/* ── Expanded create panel ── */}
       {showCreatePanel && (
         <BrainDumpInput
           onAddItem={handleAddItem}
@@ -254,19 +345,27 @@ export default function App() {
             ].map(opt => (
               <label key={opt.value} className="svp-radio-row">
                 <span className="svp-radio-label">{opt.label}</span>
-                <input
-                  type="radio"
-                  name="sortBy"
-                  checked={sortBy === opt.value}
-                  onChange={() => setSortBy(opt.value)}
-                  className="svp-radio-input"
-                />
+                <input type="radio" name="sortBy" checked={sortBy === opt.value} onChange={() => setSortBy(opt.value)} className="svp-radio-input" />
                 <span className={`svp-radio-circle ${sortBy === opt.value ? 'checked' : ''}`} />
               </label>
             ))}
 
             <div className="svp-divider" />
+            <div className="svp-section-label">Filter By Tag</div>
+            {[
+              { value: 'all', label: 'All' },
+              { value: 'now', label: 'Now' },
+              { value: 'delegate', label: 'Delegate' },
+              { value: 'someday', label: 'Someday' },
+            ].map(opt => (
+              <label key={opt.value} className="svp-radio-row">
+                <span className="svp-radio-label">{opt.label}</span>
+                <input type="radio" name="filterCategory" checked={filterCategory === opt.value} onChange={() => setFilterCategory(opt.value)} className="svp-radio-input" />
+                <span className={`svp-radio-circle ${filterCategory === opt.value ? 'checked' : ''}`} />
+              </label>
+            ))}
 
+            <div className="svp-divider" />
             <div className="svp-section-label">View As</div>
             {[
               { value: 'list', label: 'List' },
@@ -274,23 +373,13 @@ export default function App() {
             ].map(opt => (
               <label key={opt.value} className="svp-radio-row">
                 <span className="svp-radio-label">{opt.label}</span>
-                <input
-                  type="radio"
-                  name="viewMode"
-                  checked={viewMode === opt.value}
-                  onChange={() => setViewMode(opt.value)}
-                  className="svp-radio-input"
-                />
+                <input type="radio" name="viewMode" checked={viewMode === opt.value} onChange={() => setViewMode(opt.value)} className="svp-radio-input" />
                 <span className={`svp-radio-circle ${viewMode === opt.value ? 'checked' : ''}`} />
               </label>
             ))}
 
             <div className="svp-divider" />
-
-            <button
-              className="svp-reset-btn"
-              onClick={() => { setSortBy('newest'); setViewMode('list'); setFilterCategory('all'); setShowSortPanel(false); }}
-            >
+            <button className="svp-reset-btn" onClick={() => { setSortBy('newest'); setViewMode('list'); setFilterCategory('all'); setShowSortPanel(false); }}>
               Reset to default
             </button>
           </div>
@@ -299,16 +388,19 @@ export default function App() {
 
       <div className={`workspace-layout ${activePost ? 'split-view' : ''}`}>
         <div className="feed-pane">
-          <ForumFeed
-            items={displayedItems}
-            activePostId={activePostId}
-            onSelectPost={setActivePostId}
-            onMoveItem={handleMoveItem}
-            onDeleteItem={handleDeleteItem}
-            onUpdateItem={handleUpdateItem}
-            viewMode={viewMode}
-            sidebarOpen={!!activePost}
-          />
+          {itemsLoading
+            ? <p style={{ textAlign: 'center', color: '#aaa', padding: 40 }}>Loading posts…</p>
+            : <ForumFeed
+                items={displayedItems}
+                activePostId={activePostId}
+                onSelectPost={setActivePostId}
+                onMoveItem={handleMoveItem}
+                onDeleteItem={handleDeleteItem}
+                onUpdateItem={handleUpdateItem}
+                viewMode={viewMode}
+                sidebarOpen={!!activePost}
+              />
+          }
         </div>
 
         {activePost && (
@@ -325,20 +417,10 @@ export default function App() {
       </div>
 
       {showDraftsModal && (
-        <DraftsManager
-          drafts={drafts}
-          onLoadDraft={handleLoadDraft}
-          onDeleteDraft={handleDeleteDraft}
-          onClose={() => setShowDraftsModal(false)}
-        />
+        <DraftsManager drafts={drafts} onLoadDraft={handleLoadDraft} onDeleteDraft={handleDeleteDraft} onClose={() => setShowDraftsModal(false)} />
       )}
-
       {showProfileModal && (
-        <ProfileDashboard
-          user={user}
-          onUpdateUser={handleUpdateUserProfile}
-          onClose={() => setShowProfileModal(false)}
-        />
+        <ProfileDashboard user={user} onUpdateUser={handleUpdateUserProfile} onClose={() => setShowProfileModal(false)} />
       )}
     </div>
   );

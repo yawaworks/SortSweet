@@ -973,89 +973,187 @@
 .sidebar-comment-delete-btn:hover {
   color: #ff6b6b;
 }
-/* ── Date header row (e.g. "05 April 2026") ── */
-.sidebar-date-header-row {
+/* ── Bookmarks / Archive overlay modals ── */
+.overlay-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 20, 25, 0.45);
+  z-index: 20000;
   display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 4px 0 16px 0;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 48px 16px;
+  backdrop-filter: blur(2px);
 }
 
-.sidebar-date-header-line {
-  flex: 1;
-  height: 1px;
-  background: #eff3f4;
+.overlay-modal-panel {
+  background: #ffffff;
+  border-radius: 18px;
+  width: 100%;
+  max-width: 540px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.14);
+  overflow: hidden;
 }
 
-.sidebar-date-header-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #536471;
-  white-space: nowrap;
-  letter-spacing: 0.2px;
-}
-
-/* ── Post action bar (React / Follow / Share) ── */
-.sidebar-post-action-bar {
+.overlay-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 0;
-  margin: 16px 0 0 0;
-  border-top: 1px solid #eff3f4;
+  padding: 18px 20px 14px;
   border-bottom: 1px solid #eff3f4;
+  flex-shrink: 0;
 }
 
-.sidebar-action-react-btn {
+.overlay-modal-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f1419;
+  margin: 0;
+}
+
+.overlay-modal-close {
+  background: transparent;
+  border: 1px solid #cfd9de;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: #f7f9f9;
-  border: 1px solid #e1e8ed;
-  border-radius: 9999px;
-  padding: 6px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #0f1419;
+  justify-content: center;
   cursor: pointer;
+  font-size: 12px;
+  color: #0f1419;
   transition: background 0.15s;
 }
 
-.sidebar-action-react-btn:hover {
-  background: #eff3f4;
-}
+.overlay-modal-close:hover { background: #eff3f4; }
 
-.sidebar-action-icon {
+.overlay-modal-empty {
+  padding: 48px 20px;
+  text-align: center;
+  color: #536471;
   font-size: 15px;
-  line-height: 1;
 }
 
-.sidebar-action-bar-right {
+.overlay-modal-list {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.overlay-modal-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid #f7f9f9;
+  cursor: pointer;
+  transition: background 0.15s;
+  gap: 12px;
 }
 
-.sidebar-action-pill-btn {
+.overlay-modal-item:hover { background: #f7f9f9; }
+.overlay-modal-item:last-child { border-bottom: none; }
+
+.overlay-modal-item-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.overlay-modal-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.overlay-modal-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.overlay-modal-item-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.overlay-modal-item-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f1419;
+  margin: 0 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.overlay-modal-item-preview {
+  font-size: 12px;
+  color: #536471;
+  margin: 0 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.overlay-modal-item-meta {
+  font-size: 11px;
+  color: #aab8c2;
+  margin: 0;
+}
+
+.overlay-modal-item-action {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: #f5c518;
+  cursor: pointer;
+  padding: 4px;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+
+.overlay-modal-item-action:hover { transform: scale(1.2); }
+
+.overlay-modal-item-actions {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #f7f9f9;
-  border: 1px solid #e1e8ed;
+  flex-shrink: 0;
+}
+
+.overlay-modal-restore-btn {
+  background: #edf2ff;
+  color: #4c6ef5;
+  border: none;
   border-radius: 9999px;
-  padding: 6px 14px;
-  font-size: 13px;
+  padding: 5px 10px;
+  font-size: 12px;
   font-weight: 600;
-  color: #0f1419;
   cursor: pointer;
   transition: background 0.15s;
 }
+.overlay-modal-restore-btn:hover { background: #dbe4ff; }
 
-.sidebar-action-pill-btn:hover {
-  background: #eff3f4;
+.overlay-modal-delete-btn {
+  background: #fff5f5;
+  color: #ff6b6b;
+  border: none;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
 }
-
-.sidebar-action-pill-icon-only {
-  padding: 6px 10px;
-  font-size: 15px;
-}
+.overlay-modal-delete-btn:hover { background: #ffe3e3; }

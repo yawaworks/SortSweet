@@ -28,6 +28,8 @@ export default function App() {
   const [showDraftsModal, setShowDraftsModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showCreatePanel, setShowCreatePanel] = useState(false);
+  const [showBookmarks, setShowBookmarks] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('newest');
@@ -133,6 +135,7 @@ export default function App() {
     createdAt: row.created_at ? new Date(row.created_at).getTime() : 0,
     comments: row.comments || [],
     isPublic: row.is_public || false,
+    archived: row.archived || false,
     _userId: row.user_id,
   });
 
@@ -217,6 +220,7 @@ export default function App() {
       if ('category' in updatedFields) dbFields.category = updatedFields.category;
       if ('comments' in updatedFields) dbFields.comments = updatedFields.comments;
       if ('isPublic' in updatedFields) dbFields.is_public = updatedFields.isPublic;
+      if ('archived' in updatedFields) dbFields.archived = updatedFields.archived;
 
       if (Object.keys(dbFields).length === 0) return;
 
@@ -288,7 +292,7 @@ export default function App() {
   };
 
   const displayedItems = useMemo(() => {
-    let result = [...items];
+    let result = items.filter(i => !i.archived);
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(item => {
@@ -319,6 +323,8 @@ export default function App() {
           <div className="header-right-action-bay">
             <button className="drafts-drawer-toggle-btn" onClick={() => setShowProfileModal(true)}>⚙️ Settings</button>
             <button className="drafts-drawer-toggle-btn" onClick={() => setShowDraftsModal(true)}>📋 Drafts ({drafts.length})</button>
+            <button className="drafts-drawer-toggle-btn" onClick={() => setShowBookmarks(true)}>★ Bookmarks</button>
+            <button className="drafts-drawer-toggle-btn" onClick={() => setShowArchive(true)}>▼ Archive</button>
             <button onClick={handleLogout} className="control-btn logout-header-btn">Logout</button>
           </div>
         </div>
@@ -448,6 +454,135 @@ export default function App() {
       {showProfileModal && (
         <ProfileDashboard user={user} onUpdateUser={handleUpdateUserProfile} onClose={() => setShowProfileModal(false)} />
       )}
+
+      {/* ── Bookmarks modal ── */}
+      {showBookmarks && (
+        <BookmarksModal
+          items={items.filter(i => i.bookmarked && !i.archived)}
+          onClose={() => setShowBookmarks(false)}
+          onSelect={(id) => { setActivePostId(id); setShowBookmarks(false); }}
+          onUnbookmark={(id) => onUpdateItem && handleUpdateItem(id, { bookmarked: false })}
+          handleUpdateItem={handleUpdateItem}
+        />
+      )}
+
+      {/* ── Archive modal ── */}
+      {showArchive && (
+        <ArchiveModal
+          items={items.filter(i => i.archived)}
+          onClose={() => setShowArchive(false)}
+          onSelect={(id) => { setActivePostId(id); setShowArchive(false); }}
+          onUnarchive={(id) => handleUpdateItem(id, { archived: false })}
+          onDelete={handleDeleteItem}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Bookmarks Modal
+───────────────────────────────────────────── */
+function BookmarksModal({ items, onClose, onSelect, handleUpdateItem }) {
+  return (
+    <div className="overlay-modal-backdrop" onClick={onClose}>
+      <div className="overlay-modal-panel" onClick={e => e.stopPropagation()}>
+        <div className="overlay-modal-header">
+          <h2 className="overlay-modal-title">★ Bookmarks</h2>
+          <button className="overlay-modal-close" onClick={onClose}>✕</button>
+        </div>
+        {items.length === 0 ? (
+          <div className="overlay-modal-empty">
+            <p>No bookmarks yet.</p>
+            <p style={{ fontSize: 13, color: '#aaa' }}>Star a post with ☆ to save it here.</p>
+          </div>
+        ) : (
+          <div className="overlay-modal-list">
+            {items.map(item => {
+              const el = document.createElement('div');
+              el.innerHTML = item.text || '';
+              const titleEl = el.querySelector('.post-compiled-title');
+              const bodyEl = el.querySelector('.post-compiled-body');
+              const title = titleEl ? titleEl.textContent.trim() : 'Untitled Entry';
+              const preview = bodyEl ? bodyEl.textContent.trim().slice(0, 100) : '';
+              return (
+                <div key={item.id} className="overlay-modal-item" onClick={() => onSelect(item.id)}>
+                  <div className="overlay-modal-item-left">
+                    {item.image && (
+                      <div className="overlay-modal-thumb">
+                        <img src={item.image} alt="" />
+                      </div>
+                    )}
+                    <div className="overlay-modal-item-text">
+                      <p className="overlay-modal-item-title">{title}</p>
+                      {preview && <p className="overlay-modal-item-preview">{preview}…</p>}
+                      <p className="overlay-modal-item-meta">{item.authorName} · {item.timestamp}</p>
+                    </div>
+                  </div>
+                  <button
+                    className="overlay-modal-item-action"
+                    title="Remove bookmark"
+                    onClick={e => { e.stopPropagation(); handleUpdateItem(item.id, { bookmarked: false }); }}
+                  >★</button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Archive Modal
+───────────────────────────────────────────── */
+function ArchiveModal({ items, onClose, onSelect, onUnarchive, onDelete }) {
+  return (
+    <div className="overlay-modal-backdrop" onClick={onClose}>
+      <div className="overlay-modal-panel" onClick={e => e.stopPropagation()}>
+        <div className="overlay-modal-header">
+          <h2 className="overlay-modal-title">▼ Archive</h2>
+          <button className="overlay-modal-close" onClick={onClose}>✕</button>
+        </div>
+        {items.length === 0 ? (
+          <div className="overlay-modal-empty">
+            <p>Nothing archived yet.</p>
+            <p style={{ fontSize: 13, color: '#aaa' }}>Use ▼ Archive from the ••• menu to store posts here.</p>
+          </div>
+        ) : (
+          <div className="overlay-modal-list">
+            {items.map(item => {
+              const el = document.createElement('div');
+              el.innerHTML = item.text || '';
+              const titleEl = el.querySelector('.post-compiled-title');
+              const bodyEl = el.querySelector('.post-compiled-body');
+              const title = titleEl ? titleEl.textContent.trim() : 'Untitled Entry';
+              const preview = bodyEl ? bodyEl.textContent.trim().slice(0, 100) : '';
+              return (
+                <div key={item.id} className="overlay-modal-item" onClick={() => onSelect(item.id)}>
+                  <div className="overlay-modal-item-left">
+                    {item.image && (
+                      <div className="overlay-modal-thumb">
+                        <img src={item.image} alt="" />
+                      </div>
+                    )}
+                    <div className="overlay-modal-item-text">
+                      <p className="overlay-modal-item-title">{title}</p>
+                      {preview && <p className="overlay-modal-item-preview">{preview}…</p>}
+                      <p className="overlay-modal-item-meta">{item.authorName} · {item.timestamp}</p>
+                    </div>
+                  </div>
+                  <div className="overlay-modal-item-actions" onClick={e => e.stopPropagation()}>
+                    <button className="overlay-modal-restore-btn" title="Restore to feed" onClick={() => onUnarchive(item.id)}>▲ Restore</button>
+                    <button className="overlay-modal-delete-btn" title="Delete permanently" onClick={() => { if (window.confirm('Delete permanently?')) { onDelete(item.id); } }}>✕</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

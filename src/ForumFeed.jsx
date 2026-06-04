@@ -169,9 +169,9 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, viewM
               <button 
                 type="button" 
                 style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#2c3e50' }}
-                onClick={() => { navigator.clipboard.writeText(window.location.origin + '?post=' + item.id); alert("URL copied!"); setShowFeedMenu(false); }}
+                onClick={async () => { try { await navigator.clipboard.writeText(window.location.origin + '/?post=' + item.id); } catch(e) { prompt('Copy this URL:', window.location.origin + '/?post=' + item.id); } setShowFeedMenu(false); }}
               >
-                Copy URL
+                🔗 Copy URL
               </button>
               {isOwn && (
                 <button 
@@ -181,6 +181,15 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, viewM
                   disabled={canPin && !isPinned}
                 >
                   {isPinned ? "Unpin Post" : "Pin Post"}
+                </button>
+              )}
+              {isOwn && (
+                <button 
+                  type="button" 
+                  style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: item.archived ? '#20c997' : '#8e9aa6' }}
+                  onClick={() => { onUpdateItem(item.id, { archived: !item.archived }); setShowFeedMenu(false); }}
+                >
+                  {item.archived ? '▼ Unarchive' : '▼ Archive'}
                 </button>
               )}
               {isOwn && <div style={{ height: '1px', background: '#f0f0f0', margin: '4px 0' }} />}
@@ -249,7 +258,7 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, viewM
       transition={softSpringTransition}
       className={`item-card ${isActive ? 'active-row' : ''} ${isPinned ? 'pinned-card' : ''}`}
       onClick={onSelect}
-      style={{ position: 'relative', display: 'flex', gap: '16px', alignItems: 'flex-start', paddingRight: '48px' }}
+      style={{ position: 'relative', display: 'flex', gap: '12px', alignItems: 'flex-start', padding: '16px' }}
     >
       <div className="post-main-content" style={{ flex: 1, minWidth: 0, display: 'block', textAlign: 'left' }}>
         <div className="feed-user-meta-row" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#8e9aa6', marginBottom: '6px', fontFamily: 'sans-serif', justifyContent: 'flex-start' }}>
@@ -300,18 +309,13 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, viewM
         </div>
       </div>
 
-      {item.image && (
-        <div style={{ width: '64px', height: '64px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0, marginTop: '4px' }}>
-          <img src={item.image} alt="Attachment" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        </div>
-      )}
-
-      <div 
-        className="feed-item-menu-container" 
-        ref={feedMenuRef} 
-        onClick={e => e.stopPropagation()}
-        style={{ position: 'absolute', right: '12px', top: '12px', zIndex: 9999 }}
-      >
+      {/* Right column: three-dots always on top, image below — never overlapping */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', flexShrink: 0 }}
+           onClick={e => e.stopPropagation()}>
+        <div
+          className="feed-item-menu-container"
+          ref={feedMenuRef}
+        >
         <button
           className="control-btn feed-three-dots-trigger"
           onClick={(e) => {
@@ -350,9 +354,9 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, viewM
             <button 
               type="button" 
               style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#2c3e50' }}
-              onClick={() => { navigator.clipboard.writeText(window.location.origin + '?post=' + item.id); alert("URL copied!"); setShowFeedMenu(false); }}
+              onClick={async () => { try { await navigator.clipboard.writeText(window.location.origin + '/?post=' + item.id); } catch(e) { prompt('Copy this URL:', window.location.origin + '/?post=' + item.id); } setShowFeedMenu(false); }}
             >
-              Copy URL
+              🔗 Copy URL
             </button>
             {isOwn && (
               <button 
@@ -362,6 +366,15 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, viewM
                 disabled={canPin && !isPinned}
               >
                 {isPinned ? "Unpin Post" : "Pin Post"}
+              </button>
+            )}
+            {isOwn && (
+              <button 
+                type="button" 
+                style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: item.archived ? '#20c997' : '#8e9aa6' }}
+                onClick={() => { onUpdateItem(item.id, { archived: !item.archived }); setShowFeedMenu(false); }}
+              >
+                {item.archived ? '▼ Unarchive' : '▼ Archive'}
               </button>
             )}
             {isOwn && <div style={{ height: '1px', background: '#f0f0f0', margin: '4px 0' }} />}
@@ -375,6 +388,12 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, viewM
                 Delete Post
               </button>
             )}
+          </div>
+        )}
+        </div>
+        {item.image && (
+          <div style={{ width: '64px', height: '64px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0 }}>
+            <img src={item.image} alt="Attachment" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
         )}
       </div>

@@ -973,3 +973,89 @@
 .sidebar-comment-delete-btn:hover {
   color: #ff6b6b;
 }
+/* ── Date header row (e.g. "05 April 2026") ── */
+.sidebar-date-header-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 16px 0;
+}
+
+.sidebar-date-header-line {
+  flex: 1;
+  height: 1px;
+  background: #eff3f4;
+}
+
+.sidebar-date-header-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #536471;
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+}
+
+/* ── Post action bar (React / Follow / Share) ── */
+.sidebar-post-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  margin: 16px 0 0 0;
+  border-top: 1px solid #eff3f4;
+  border-bottom: 1px solid #eff3f4;
+}
+
+.sidebar-action-react-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f7f9f9;
+  border: 1px solid #e1e8ed;
+  border-radius: 9999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f1419;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.sidebar-action-react-btn:hover {
+  background: #eff3f4;
+}
+
+.sidebar-action-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.sidebar-action-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sidebar-action-pill-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f7f9f9;
+  border: 1px solid #e1e8ed;
+  border-radius: 9999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f1419;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.sidebar-action-pill-btn:hover {
+  background: #eff3f4;
+}
+
+.sidebar-action-pill-icon-only {
+  padding: 6px 10px;
+  font-size: 15px;
+}

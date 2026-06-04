@@ -67,11 +67,28 @@ export default function PostDetailSidebar({
   const bodyContentHtml = getBodyHtmlContent(item.text);
   const bodyContentWithoutImages = bodyContentHtml.replace(/<img[^>]*>/gi, '');
 
+  // Format: DD-MM-YYYY HH:MM  (matches reference screenshot style)
   const formattedTimestamp = React.useMemo(() => {
-    return item.timestamp || new Date().toLocaleString([], {
-      month: 'short', day: 'numeric', year: 'numeric',
-      hour: '2-digit', minute: '2-digit'
-    });
+    const raw = item.timestamp || item.createdAt;
+    if (!raw) return '';
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return item.timestamp || '';
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${dd}-${mm}-${yyyy} ${hh}:${min}`;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id, item.timestamp]);
+
+  // "05 April 2026" style date header
+  const formattedDateHeader = React.useMemo(() => {
+    const raw = item.timestamp || item.createdAt;
+    if (!raw) return '';
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item.id, item.timestamp]);
 
@@ -176,11 +193,14 @@ export default function PostDetailSidebar({
           <h1 className="sidebar-main-compiled-headline">{plainTextLabel || 'Untitled Entry'}</h1>
         )}
 
-        {/* Timestamp below title */}
-        <div className="sidebar-realtime-timestamp-row">{formattedTimestamp}</div>
-
-        {/* Divider */}
-        <div className="sidebar-divider" />
+        {/* Date header — "05 April 2026" style */}
+        {formattedDateHeader && (
+          <div className="sidebar-date-header-row">
+            <span className="sidebar-date-header-line" />
+            <span className="sidebar-date-header-label">{formattedDateHeader}</span>
+            <span className="sidebar-date-header-line" />
+          </div>
+        )}
 
         {/* Author row with OP badge */}
         <div className="sidebar-author-op-profile-row">
@@ -196,6 +216,7 @@ export default function PostDetailSidebar({
               {isOp && <span className="sidebar-op-badge">OP</span>}
             </div>
             <span className="sidebar-author-handle-sub">{authorHandle} · {formattedTimestamp}</span>
+
           </div>
         </div>
 
@@ -217,8 +238,23 @@ export default function PostDetailSidebar({
   </div>
 )}
 
+        {/* Action bar — separator between post content and comments */}
+        <div className="sidebar-post-action-bar">
+          <button type="button" className="sidebar-action-react-btn">
+            <span className="sidebar-action-icon">🙂</span> React to Post
+          </button>
+          <div className="sidebar-action-bar-right">
+            <button type="button" className="sidebar-action-pill-btn">
+              <span>🔔</span> Follow
+            </button>
+            <button type="button" className="sidebar-action-pill-btn sidebar-action-pill-icon-only" onClick={() => alert('Link copied!')}>
+              🔗
+            </button>
+          </div>
+        </div>
+
         {/* Divider before comments */}
-        <div className="sidebar-divider" style={{ marginTop: 20 }} />
+        <div className="sidebar-divider" />
 
         {/* Comments section */}
         <div className="sidebar-comments-section">

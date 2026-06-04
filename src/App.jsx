@@ -111,6 +111,7 @@ export default function App() {
       : '',
     createdAt: row.created_at ? new Date(row.created_at).getTime() : 0,
     comments: row.comments || [],
+    isPublic: row.is_public || false,
   });
 
   const fetchOrCreateProfile = async (authUser) => {
@@ -193,6 +194,7 @@ export default function App() {
       if ('text' in updatedFields) dbFields.text = updatedFields.text;
       if ('category' in updatedFields) dbFields.category = updatedFields.category;
       if ('comments' in updatedFields) dbFields.comments = updatedFields.comments;
+      if ('isPublic' in updatedFields) dbFields.is_public = updatedFields.isPublic;
 
       if (Object.keys(dbFields).length === 0) return;
 

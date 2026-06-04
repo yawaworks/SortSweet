@@ -31,7 +31,7 @@ function calculateTimeAgo(timestamp) {
   }
 }
 
-export default function ForumFeed({ items, activePostId, onSelectPost, onMoveItem, onDeleteItem, onUpdateItem, viewMode, sidebarOpen, pinnedIds = [], onTogglePin }) {
+export default function ForumFeed({ items, activePostId, onSelectPost, onMoveItem, onDeleteItem, onUpdateItem, viewMode, sidebarOpen, pinnedIds = [], onTogglePin, currentUserId }) {
   if (items.length === 0) {
     return (
       <div className="feed-empty-state">
@@ -56,6 +56,7 @@ export default function ForumFeed({ items, activePostId, onSelectPost, onMoveIte
             isPinned={pinnedIds.includes(item.id)}
             onTogglePin={onTogglePin}
             canPin={!pinnedIds.includes(item.id) && pinnedIds.length >= 3}
+            isOwn={item._userId === currentUserId}
           />
         ))}
       </AnimatePresence>
@@ -76,7 +77,7 @@ function parseCompiledHtml(htmlString) {
   };
 }
 
-function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, viewMode, isPinned, onTogglePin, canPin }) {
+function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, viewMode, isPinned, onTogglePin, canPin, isOwn = true }) {
   const { title, bodyPreview } = parseCompiledHtml(item.text);
   const [showFeedMenu, setShowFeedMenu] = useState(false);
   const [feedMenuPos, setFeedMenuPos] = useState({ top: 0, right: 0 });
@@ -146,52 +147,53 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, viewM
           </button>
 
           {showFeedMenu && (
-            <div className="sidebar-dropdown-menu" style={{ position: 'fixed', top: feedMenuPos.top, right: feedMenuPos.right, zIndex: 999999, display: 'block', background: '#ffffff', boxShadow: '0px 4px 16px rgba(0,0,0,0.12)', borderRadius: '8px', minWidth: '160px', padding: '4px 0', border: '1px solid #f0e6e1' }}>
+            <div className="sidebar-dropdown-menu" style={{ position: 'fixed', top: feedMenuPos.top, right: feedMenuPos.right, zIndex: 999999, display: 'block', background: '#ffffff', boxShadow: '0px 4px 16px rgba(0,0,0,0.12)', borderRadius: '8px', minWidth: '170px', padding: '4px 0', border: '1px solid #f0e6e1' }}>
+              {isOwn && (
+                <button 
+                  type="button" 
+                  style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#2c3e50' }}
+                  onClick={() => { onSelect(); setShowFeedMenu(false); }}
+                >
+                  Edit Post
+                </button>
+              )}
+              {isOwn && (
+                <button 
+                  type="button" 
+                  style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: item.isPublic ? '#ff8b94' : '#2c3e50', fontWeight: item.isPublic ? 600 : 400 }}
+                  onClick={() => { onUpdateItem(item.id, { isPublic: !item.isPublic }); setShowFeedMenu(false); }}
+                >
+                  {item.isPublic ? '🔒 Make Private' : '🌐 Make Public'}
+                </button>
+              )}
               <button 
                 type="button" 
                 style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#2c3e50' }}
-                onClick={() => { onSelect(); setShowFeedMenu(false); }}
-              >
-                Edit Post
-              </button>
-              <button 
-                type="button" 
-                style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: item.isPublic ? '#ff8b94' : '#2c3e50', fontWeight: item.isPublic ? 600 : 400 }}
-                onClick={() => { onUpdateItem(item.id, { isPublic: !item.isPublic }); setShowFeedMenu(false); }}
-              >
-                {item.isPublic ? '🔒 Make Private' : '🌐 Make Public'}
-              </button>
-              <button 
-                type="button" 
-                style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#2c3e50' }}
-                onClick={() => { alert("Post shared successfully!"); setShowFeedMenu(false); }}
-              >
-                Share
-              </button>
-              <button 
-                type="button" 
-                style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#2c3e50' }}
-                onClick={() => { navigator.clipboard.writeText(window.location.origin + '?post=' + item.id); alert("URL copied to clipboard!"); setShowFeedMenu(false); }}
+                onClick={() => { navigator.clipboard.writeText(window.location.origin + '?post=' + item.id); alert("URL copied!"); setShowFeedMenu(false); }}
               >
                 Copy URL
               </button>
-              <button 
-                type="button" 
-                style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#2c3e50' }}
-                onClick={() => { if (!canPin || isPinned) onTogglePin(item.id); setShowFeedMenu(false); }}
-                disabled={canPin && !isPinned}
-              >
-                {isPinned ? "Unpin Post" : "Pin Post"}
-              </button>
-              <div style={{ height: '1px', background: '#f0f0f0', margin: '4px 0' }} />
-              <button 
-                type="button" 
-                className="menu-delete-action"
-                style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#ff6b6b' }}
-                onClick={() => { if (window.confirm("Permanently delete this entry?")) onDeleteItem(item.id); setShowFeedMenu(false); }}
-              >
-                Delete Post
-              </button>
+              {isOwn && (
+                <button 
+                  type="button" 
+                  style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#2c3e50' }}
+                  onClick={() => { if (!canPin || isPinned) onTogglePin(item.id); setShowFeedMenu(false); }}
+                  disabled={canPin && !isPinned}
+                >
+                  {isPinned ? "Unpin Post" : "Pin Post"}
+                </button>
+              )}
+              {isOwn && <div style={{ height: '1px', background: '#f0f0f0', margin: '4px 0' }} />}
+              {isOwn && (
+                <button 
+                  type="button" 
+                  className="menu-delete-action"
+                  style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#ff6b6b' }}
+                  onClick={() => { if (window.confirm("Permanently delete this entry?")) onDeleteItem(item.id); setShowFeedMenu(false); }}
+                >
+                  Delete Post
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -247,7 +249,7 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, viewM
       transition={softSpringTransition}
       className={`item-card ${isActive ? 'active-row' : ''} ${isPinned ? 'pinned-card' : ''}`}
       onClick={onSelect}
-      style={{ position: 'relative', display: 'flex', gap: '12px', alignItems: 'flex-start', paddingRight: '16px' }}
+      style={{ position: 'relative', display: 'flex', gap: '16px', alignItems: 'flex-start', paddingRight: '48px' }}
     >
       <div className="post-main-content" style={{ flex: 1, minWidth: 0, display: 'block', textAlign: 'left' }}>
         <div className="feed-user-meta-row" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#8e9aa6', marginBottom: '6px', fontFamily: 'sans-serif', justifyContent: 'flex-start' }}>
@@ -298,27 +300,36 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, viewM
         </div>
       </div>
 
-      {/* Right-side column: three-dots on top, image below — no overlap */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', flexShrink: 0 }}
-           onClick={e => e.stopPropagation()}>
-        <div className="feed-item-menu-container" ref={feedMenuRef}>
-          <button
-            className="control-btn feed-three-dots-trigger"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!showFeedMenu) {
-                const r = e.currentTarget.getBoundingClientRect();
-                setFeedMenuPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
-              }
-              setShowFeedMenu(v => !v);
-            }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', fontSize: '14px', color: '#8e9aa6', fontWeight: 'bold', lineHeight: 1 }}
-          >
-            •••
-          </button>
+      {item.image && (
+        <div style={{ width: '64px', height: '64px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0, marginTop: '4px' }}>
+          <img src={item.image} alt="Attachment" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </div>
+      )}
 
-          {showFeedMenu && (
-            <div className="sidebar-dropdown-menu" style={{ position: 'fixed', top: feedMenuPos.top, right: feedMenuPos.right, zIndex: 999999, display: 'block', background: '#ffffff', boxShadow: '0px 4px 16px rgba(0,0,0,0.12)', borderRadius: '8px', minWidth: '170px', padding: '4px 0', border: '1px solid #f0e6e1' }}>
+      <div 
+        className="feed-item-menu-container" 
+        ref={feedMenuRef} 
+        onClick={e => e.stopPropagation()}
+        style={{ position: 'absolute', right: '12px', top: '12px', zIndex: 9999 }}
+      >
+        <button
+          className="control-btn feed-three-dots-trigger"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!showFeedMenu) {
+              const r = e.currentTarget.getBoundingClientRect();
+              setFeedMenuPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
+            }
+            setShowFeedMenu(v => !v);
+          }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', fontSize: '14px', color: '#8e9aa6', fontWeight: 'bold', lineHeight: 1 }}
+        >
+          •••
+        </button>
+
+        {showFeedMenu && (
+          <div className="sidebar-dropdown-menu" style={{ position: 'fixed', top: feedMenuPos.top, right: feedMenuPos.right, zIndex: 999999, display: 'block', background: '#ffffff', boxShadow: '0px 4px 16px rgba(0,0,0,0.12)', borderRadius: '8px', minWidth: '170px', padding: '4px 0', border: '1px solid #f0e6e1' }}>
+            {isOwn && (
               <button 
                 type="button" 
                 style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#2c3e50' }}
@@ -326,6 +337,8 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, viewM
               >
                 Edit Post
               </button>
+            )}
+            {isOwn && (
               <button 
                 type="button" 
                 style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: item.isPublic ? '#ff8b94' : '#2c3e50', fontWeight: item.isPublic ? 600 : 400 }}
@@ -333,20 +346,15 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, viewM
               >
                 {item.isPublic ? '🔒 Make Private' : '🌐 Make Public'}
               </button>
-              <button 
-                type="button" 
-                style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#2c3e50' }}
-                onClick={() => { alert("Post shared successfully!"); setShowFeedMenu(false); }}
-              >
-                Share
-              </button>
-              <button 
-                type="button" 
-                style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#2c3e50' }}
-                onClick={() => { navigator.clipboard.writeText(window.location.origin + '?post=' + item.id); alert("URL copied!"); setShowFeedMenu(false); }}
-              >
-                Copy URL
-              </button>
+            )}
+            <button 
+              type="button" 
+              style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#2c3e50' }}
+              onClick={() => { navigator.clipboard.writeText(window.location.origin + '?post=' + item.id); alert("URL copied!"); setShowFeedMenu(false); }}
+            >
+              Copy URL
+            </button>
+            {isOwn && (
               <button 
                 type="button" 
                 style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#2c3e50' }}
@@ -355,7 +363,9 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, viewM
               >
                 {isPinned ? "Unpin Post" : "Pin Post"}
               </button>
-              <div style={{ height: '1px', background: '#f0f0f0', margin: '4px 0' }} />
+            )}
+            {isOwn && <div style={{ height: '1px', background: '#f0f0f0', margin: '4px 0' }} />}
+            {isOwn && (
               <button 
                 type="button" 
                 className="menu-delete-action"
@@ -364,13 +374,7 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, viewM
               >
                 Delete Post
               </button>
-            </div>
-          )}
-        </div>
-
-        {item.image && (
-          <div style={{ width: '64px', height: '64px', borderRadius: '8px', overflow: 'hidden' }}>
-            <img src={item.image} alt="Attachment" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            )}
           </div>
         )}
       </div>

@@ -77,17 +77,38 @@ export default function App() {
     if (userId) fetchPosts(userId);
   }, [userId]);
 
-  // ── Fetch all posts for this user ──
+  // ── Fetch own posts + all public posts from any user ──
   const fetchPosts = async (uid) => {
     setItemsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('posts')
-        .select('*')
-        .eq('user_id', uid)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setItems((data || []).map(rowToItem));
+      // Two queries in parallel: own posts (any visibility) + other users' public posts
+      const [ownResult, publicResult] = await Promise.all([
+        supabase
+          .from('posts')
+          .select('*')
+          .eq('user_id', uid)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('posts')
+          .select('*')
+          .eq('is_public', true)
+          .neq('user_id', uid)          // exclude own posts (already in first query)
+          .order('created_at', { ascending: false }),
+      ]);
+
+      if (ownResult.error) throw ownResult.error;
+      if (publicResult.error) throw publicResult.error;
+
+      const combined = [...(ownResult.data || []), ...(publicResult.data || [])];
+      // Deduplicate by id (safety net) then sort newest first
+      const seen = new Set();
+      const deduped = combined.filter(row => {
+        if (seen.has(row.id)) return false;
+        seen.add(row.id);
+        return true;
+      });
+      deduped.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      setItems(deduped.map(rowToItem));
     } catch (err) {
       console.error('fetchPosts error:', err);
     } finally {
@@ -112,6 +133,7 @@ export default function App() {
     createdAt: row.created_at ? new Date(row.created_at).getTime() : 0,
     comments: row.comments || [],
     isPublic: row.is_public || false,
+    _userId: row.user_id,
   });
 
   const fetchOrCreateProfile = async (authUser) => {
@@ -198,6 +220,7 @@ export default function App() {
 
       if (Object.keys(dbFields).length === 0) return;
 
+      // Only update rows you own — Supabase RLS also enforces this server-side
       const { error } = await supabase
         .from('posts')
         .update(dbFields)
@@ -401,6 +424,7 @@ export default function App() {
                 onUpdateItem={handleUpdateItem}
                 viewMode={viewMode}
                 sidebarOpen={!!activePost}
+                currentUserId={userId}
               />
           }
         </div>

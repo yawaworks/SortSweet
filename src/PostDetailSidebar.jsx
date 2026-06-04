@@ -3,26 +3,22 @@ import { motion, AnimatePresence } from 'framer-motion';
 import './JournalEditor.css';
 
 export default function PostDetailSidebar({ 
-  item, 
-  onClose, 
-  onDeletePost, 
-  onUpdateItem,
-  onAddComment,
-  onDeleteComment,
-  currentUser 
+  item, onClose, onDeletePost, onUpdateItem,
+  onAddComment, onDeleteComment, currentUser 
 }) {
   const [showMenu, setShowMenu] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editBody, setEditBody] = useState('');
   const [commentText, setCommentText] = useState('');
+  const [replyingTo, setReplyingTo] = useState(null); // { commentId, author }
   const menuRef = useRef(null);
   const menuBtnRef = useRef(null);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
 
-  const currentUserName = currentUser?.username || currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User';
+  const currentUserName = currentUser?.nickname || currentUser?.username || currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User';
   const currentUserAvatar = currentUser?.avatar || currentUser?.avatarUrl || null;
-  const isOp = !item.authorName || item.authorName === currentUserName || item.authorName === 'Original Poster';
+  const isOp = !item.authorName || item.authorName === currentUserName || item.authorName === (currentUser?.username);
 
   useEffect(() => {
     if (item) {
@@ -35,9 +31,7 @@ export default function PostDetailSidebar({
 
   useEffect(() => {
     function handleClickOutside(event) {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setShowMenu(false);
-      }
+      if (menuRef.current && !menuRef.current.contains(event.target)) setShowMenu(false);
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -67,7 +61,6 @@ export default function PostDetailSidebar({
   const bodyContentHtml = getBodyHtmlContent(item.text);
   const bodyContentWithoutImages = bodyContentHtml.replace(/<img[^>]*>/gi, '');
 
-  // Format: DD-MM-YYYY HH:MM  (matches reference screenshot style)
   const formattedTimestamp = React.useMemo(() => {
     const raw = item.timestamp || item.createdAt;
     if (!raw) return '';
@@ -79,27 +72,19 @@ export default function PostDetailSidebar({
     const hh = String(d.getHours()).padStart(2, '0');
     const min = String(d.getMinutes()).padStart(2, '0');
     return `${dd}-${mm}-${yyyy} ${hh}:${min}`;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item.id, item.timestamp]);
 
-  // "05 April 2026" style date header
   const formattedDateHeader = React.useMemo(() => {
     const raw = item.timestamp || item.createdAt;
     if (!raw) return '';
     const d = new Date(raw);
     if (isNaN(d.getTime())) return '';
     return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item.id, item.timestamp]);
 
   const handleSaveEdit = () => {
     if (!editTitle.trim() && !editBody.trim()) return;
-    const rebuilt = `
-      <div class="journal-post-compiled">
-        <h2 class="post-compiled-title">${editTitle.trim() || 'Untitled Entry'}</h2>
-        <div class="post-compiled-body rich-text-display-pane"><p>${editBody.trim()}</p></div>
-      </div>
-    `;
+    const rebuilt = `<div class="journal-post-compiled"><h2 class="post-compiled-title">${editTitle.trim() || 'Untitled Entry'}</h2><div class="post-compiled-body rich-text-display-pane"><p>${editBody.trim()}</p></div></div>`;
     onUpdateItem(item.id, { text: rebuilt });
     setIsEditing(false);
   };
@@ -107,14 +92,19 @@ export default function PostDetailSidebar({
   const handlePostComment = () => {
     if (!commentText.trim()) return;
     if (typeof onAddComment === 'function') {
-      onAddComment(item.id, commentText, currentUserName, currentUserAvatar);
+      onAddComment(item.id, commentText, currentUserName, currentUserAvatar, replyingTo?.commentId || null);
     }
     setCommentText('');
+    setReplyingTo(null);
   };
 
   const authorName = item.authorName || currentUserName;
   const authorAvatar = item.authorAvatar || currentUserAvatar;
   const authorHandle = '@' + authorName.toLowerCase().replace(/\s+/g, '_');
+
+  // Group: top-level comments + their replies
+  const topLevelComments = (item.comments || []).filter(c => !c.replyTo);
+  const getReplies = (commentId) => (item.comments || []).filter(c => c.replyTo === commentId);
 
   return (
     <motion.aside
@@ -124,66 +114,38 @@ export default function PostDetailSidebar({
       transition={{ type: "spring", stiffness: 500, damping: 35 }}
       className="post-detail-sidebar-container"
     >
-      {/* ── Top bar: post name light + close/menu ── */}
+      {/* Top bar */}
       <div className="sidebar-upper-control-panel">
         <span className="sidebar-topbar-post-name">{plainTextLabel || 'Untitled Entry'}</span>
-
         <div className="sidebar-action-menu-wrapper" ref={menuRef}>
-          <button
-            type="button"
-            className="sidebar-three-dots-btn"
-            ref={menuBtnRef}
+          <button type="button" className="sidebar-three-dots-btn" ref={menuBtnRef}
             onClick={() => {
               if (!showMenu && menuBtnRef.current) {
                 const r = menuBtnRef.current.getBoundingClientRect();
                 setDropdownPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
               }
               setShowMenu(v => !v);
-            }}
-            title="Options"
-          >
-            •••
-          </button>
-
+            }} title="Options">•••</button>
           {showMenu && (
             <div className="sidebar-dropdown-menu" style={{ top: dropdownPos.top, right: dropdownPos.right }}>
-              {isOp && (
-                <>
-                  <button type="button" onClick={() => { setIsEditing(true); setShowMenu(false); }}>Edit Post</button>
-                  <button type="button" className="menu-delete-action" onClick={() => {
-                    if (window.confirm("Delete this entry permanently?")) { onDeletePost(item.id); onClose(); }
-                  }}>Delete Post</button>
-                </>
-              )}
+              {isOp && (<>
+                <button type="button" onClick={() => { setIsEditing(true); setShowMenu(false); }}>Edit Post</button>
+                <button type="button" className="menu-delete-action" onClick={() => { if (window.confirm("Delete this entry permanently?")) { onDeletePost(item.id); onClose(); } }}>Delete Post</button>
+              </>)}
               <button type="button" onClick={() => { alert("Following thread..."); setShowMenu(false); }}>Follow Thread</button>
               <button type="button" onClick={() => { alert("Link copied!"); setShowMenu(false); }}>Share</button>
             </div>
           )}
-
           <button className="sidebar-close-panel-btn" onClick={onClose} title="Close">✕</button>
         </div>
       </div>
 
-      {/* ── Scrollable body ── */}
+      {/* Scrollable body */}
       <div className="sidebar-scrollable-body-content">
-
-        {/* Big post title */}
         {isEditing ? (
           <div className="sidebar-edit-mode-container">
-            <input
-              type="text"
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-              className="sidebar-edit-title-input"
-              placeholder="Post title..."
-            />
-            <textarea
-              value={editBody}
-              onChange={(e) => setEditBody(e.target.value)}
-              className="sidebar-edit-textarea"
-              placeholder="Post body..."
-              rows={5}
-            />
+            <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} className="sidebar-edit-title-input" placeholder="Post title..." />
+            <textarea value={editBody} onChange={e => setEditBody(e.target.value)} className="sidebar-edit-textarea" placeholder="Post body..." rows={5} />
             <div className="sidebar-edit-actions">
               <button type="button" className="edit-cancel" onClick={() => setIsEditing(false)}>Cancel</button>
               <button type="button" className="edit-save" onClick={handleSaveEdit}>Save</button>
@@ -193,8 +155,8 @@ export default function PostDetailSidebar({
           <h1 className="sidebar-main-compiled-headline">{plainTextLabel || 'Untitled Entry'}</h1>
         )}
 
-        {/* Date header — "05 April 2026" style */}
-        {formattedDateHeader && (
+        {/* ── Separator line between title and content (like reference screenshot) ── */}
+        {!isEditing && formattedDateHeader && (
           <div className="sidebar-date-header-row">
             <span className="sidebar-date-header-line" />
             <span className="sidebar-date-header-label">{formattedDateHeader}</span>
@@ -202,7 +164,7 @@ export default function PostDetailSidebar({
           </div>
         )}
 
-        {/* Author row with OP badge */}
+        {/* Author row */}
         <div className="sidebar-author-op-profile-row">
           <div className="sidebar-author-avatar-circle">
             {authorAvatar
@@ -216,44 +178,28 @@ export default function PostDetailSidebar({
               {isOp && <span className="sidebar-op-badge">OP</span>}
             </div>
             <span className="sidebar-author-handle-sub">{authorHandle} · {formattedTimestamp}</span>
-
           </div>
         </div>
 
         {/* Body content */}
-{!isEditing && (
-  <div className="sidebar-compiled-html-body-view rich-text-display-pane">
-    <div
-      dangerouslySetInnerHTML={{
-        __html: bodyContentWithoutImages
-      }}
-    />
-    {item.image && (
-      <img
-        src={item.image}
-        alt="Attachment"
-        className="sidebar-body-embedded-media"
-      />
-    )}
-  </div>
-)}
+        {!isEditing && (
+          <div className="sidebar-compiled-html-body-view rich-text-display-pane">
+            <div dangerouslySetInnerHTML={{ __html: bodyContentWithoutImages }} />
+            {item.image && <img src={item.image} alt="Attachment" className="sidebar-body-embedded-media" />}
+          </div>
+        )}
 
-        {/* Action bar — separator between post content and comments */}
+        {/* Action bar */}
         <div className="sidebar-post-action-bar">
           <button type="button" className="sidebar-action-react-btn">
             <span className="sidebar-action-icon">🙂</span> React to Post
           </button>
           <div className="sidebar-action-bar-right">
-            <button type="button" className="sidebar-action-pill-btn">
-              <span>🔔</span> Follow
-            </button>
-            <button type="button" className="sidebar-action-pill-btn sidebar-action-pill-icon-only" onClick={() => alert('Link copied!')}>
-              🔗
-            </button>
+            <button type="button" className="sidebar-action-pill-btn"><span>🔔</span> Follow</button>
+            <button type="button" className="sidebar-action-pill-btn sidebar-action-pill-icon-only" onClick={() => alert('Link copied!')}>🔗</button>
           </div>
         </div>
 
-        {/* Divider before comments */}
         <div className="sidebar-divider" />
 
         {/* Comments section */}
@@ -261,45 +207,82 @@ export default function PostDetailSidebar({
           <p className="sidebar-comments-count">{(item.comments || []).length} comment{(item.comments || []).length !== 1 ? 's' : ''}</p>
 
           <AnimatePresence>
-            {(item.comments || []).map((comment) => (
-              <motion.div
-                key={comment.id}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                className="sidebar-comment-item"
-              >
-                <div className="sidebar-author-avatar-circle sidebar-comment-avatar">
-                  {comment.authorAvatar
-                    ? <img src={comment.authorAvatar} alt={comment.author} />
-                    : <div className="sidebar-avatar-fallback">{(comment.author || 'U').charAt(0).toUpperCase()}</div>
-                  }
-                </div>
-                <div className="sidebar-comment-body">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span className="sidebar-author-display-name" style={{ fontSize: 13 }}>{comment.author || 'User'}</span>
-                    {(comment.author === authorName || !comment.author) && (
-                      <span className="sidebar-op-badge">OP</span>
-                    )}
-                    <span className="sidebar-author-handle-sub" style={{ marginLeft: 'auto' }}>{comment.timestamp}</span>
-                    {typeof onDeleteComment === 'function' && (
-                      <button
-                        className="sidebar-comment-delete-btn"
-                        onClick={() => onDeleteComment(item.id, comment.id)}
-                        title="Delete comment"
-                      >✕</button>
-                    )}
+            {topLevelComments.map((comment) => (
+              <React.Fragment key={comment.id}>
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  className="sidebar-comment-item"
+                >
+                  <div className="sidebar-author-avatar-circle sidebar-comment-avatar">
+                    {comment.authorAvatar
+                      ? <img src={comment.authorAvatar} alt={comment.author} />
+                      : <div className="sidebar-avatar-fallback">{(comment.author || 'U').charAt(0).toUpperCase()}</div>
+                    }
                   </div>
-                  <p className="sidebar-comment-text">{comment.text}</p>
-                </div>
-              </motion.div>
+                  <div className="sidebar-comment-body">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span className="sidebar-author-display-name" style={{ fontSize: 13 }}>{comment.author || 'User'}</span>
+                      {(comment.author === authorName) && <span className="sidebar-op-badge">OP</span>}
+                      <span className="sidebar-author-handle-sub" style={{ marginLeft: 'auto' }}>{comment.timestamp}</span>
+                      {typeof onDeleteComment === 'function' && (
+                        <button className="sidebar-comment-delete-btn" onClick={() => onDeleteComment(item.id, comment.id)} title="Delete comment">✕</button>
+                      )}
+                    </div>
+                    <p className="sidebar-comment-text">{comment.text}</p>
+                    <button
+                      className="sidebar-comment-reply-btn"
+                      onClick={() => setReplyingTo(replyingTo?.commentId === comment.id ? null : { commentId: comment.id, author: comment.author })}
+                    >
+                      ↩ Reply
+                    </button>
+                  </div>
+                </motion.div>
+
+                {/* Nested replies */}
+                {getReplies(comment.id).map(reply => (
+                  <motion.div
+                    key={reply.id}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="sidebar-comment-item sidebar-comment-reply-indent"
+                  >
+                    <div className="sidebar-author-avatar-circle sidebar-comment-avatar">
+                      {reply.authorAvatar
+                        ? <img src={reply.authorAvatar} alt={reply.author} />
+                        : <div className="sidebar-avatar-fallback">{(reply.author || 'U').charAt(0).toUpperCase()}</div>
+                      }
+                    </div>
+                    <div className="sidebar-comment-body">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span className="sidebar-author-display-name" style={{ fontSize: 13 }}>{reply.author || 'User'}</span>
+                        {reply.author === authorName && <span className="sidebar-op-badge">OP</span>}
+                        <span className="sidebar-reply-to-label">↩ {reply.replyToAuthor}</span>
+                        <span className="sidebar-author-handle-sub" style={{ marginLeft: 'auto' }}>{reply.timestamp}</span>
+                        {typeof onDeleteComment === 'function' && (
+                          <button className="sidebar-comment-delete-btn" onClick={() => onDeleteComment(item.id, reply.id)} title="Delete">✕</button>
+                        )}
+                      </div>
+                      <p className="sidebar-comment-text">{reply.text}</p>
+                    </div>
+                  </motion.div>
+                ))}
+              </React.Fragment>
             ))}
           </AnimatePresence>
         </div>
       </div>
 
-      {/* ── Comment input pinned to bottom ── */}
+      {/* Comment input pinned to bottom */}
       <div className="sidebar-comment-form-wrapper">
+        {replyingTo && (
+          <div className="sidebar-replying-to-bar">
+            <span>Replying to <strong>{replyingTo.author}</strong></span>
+            <button type="button" onClick={() => setReplyingTo(null)}>✕</button>
+          </div>
+        )}
         <div className="sidebar-comment-form">
           <div className="sidebar-author-avatar-circle" style={{ width: 32, height: 32, flexShrink: 0 }}>
             {currentUserAvatar
@@ -310,18 +293,12 @@ export default function PostDetailSidebar({
           <input
             type="text"
             className="comment-input-bar"
-            placeholder={`Reply as ${currentUserName}…`}
+            placeholder={replyingTo ? `Reply to ${replyingTo.author}…` : `Reply as ${currentUserName}…`}
             value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handlePostComment()}
+            onChange={e => setCommentText(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handlePostComment()}
           />
-          <button
-            type="button"
-            className="submit-post-btn"
-            style={{ padding: '6px 14px', fontSize: 13 }}
-            onClick={handlePostComment}
-            disabled={!commentText.trim()}
-          >Post</button>
+          <button type="button" className="submit-post-btn" style={{ padding: '6px 14px', fontSize: 13 }} onClick={handlePostComment} disabled={!commentText.trim()}>Post</button>
         </div>
       </div>
     </motion.aside>

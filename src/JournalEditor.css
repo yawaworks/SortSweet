@@ -1157,3 +1157,224 @@
   transition: background 0.15s;
 }
 .overlay-modal-delete-btn:hover { background: #ffe3e3; }
+/* ── Sidebar date header separator ── */
+.sidebar-date-header-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 18px 0;
+}
+.sidebar-date-header-line {
+  flex: 1;
+  height: 1px;
+  background: #e8ecef;
+}
+.sidebar-date-header-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8e9aa6;
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+}
+
+/* ── Comment reply indent ── */
+.sidebar-comment-reply-indent {
+  margin-left: 42px;
+  padding-left: 12px;
+  border-left: 2px solid #f0f4f7;
+}
+.sidebar-reply-to-label {
+  font-size: 11px;
+  color: #aab8c2;
+  font-weight: 500;
+}
+.sidebar-comment-reply-btn {
+  background: none;
+  border: none;
+  color: #aab8c2;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 0;
+  transition: color 0.15s;
+  text-align: left;
+}
+.sidebar-comment-reply-btn:hover { color: #ff8b94; }
+
+/* ── Replying-to banner above comment input ── */
+.sidebar-replying-to-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff5f5;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: #536471;
+  margin-bottom: 8px;
+}
+.sidebar-replying-to-bar button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #aaa;
+  font-size: 12px;
+}
+
+/* ── Notifications ── */
+.notif-bell-btn {
+  position: relative;
+}
+.notif-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ff6b6b;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 9999px;
+  padding: 1px 5px;
+  line-height: 1.4;
+  pointer-events: none;
+}
+.notif-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #eff3f4;
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  width: 320px;
+  max-height: 420px;
+  overflow-y: auto;
+  z-index: 99999;
+}
+.notif-dropdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  font-weight: 700;
+  font-size: 15px;
+  color: #0f1419;
+  border-bottom: 1px solid #f0f4f7;
+  position: sticky;
+  top: 0;
+  background: #fff;
+}
+.notif-clear-btn {
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: #ff8b94;
+  cursor: pointer;
+  font-weight: 600;
+}
+.notif-empty {
+  padding: 28px 16px;
+  text-align: center;
+  color: #aab8c2;
+  font-size: 14px;
+  margin: 0;
+}
+.notif-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f7f9f9;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.notif-item:hover { background: #f7f9f9; }
+.notif-item.unread { background: #fff9f9; }
+.notif-item:last-child { border-bottom: none; }
+.notif-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.notif-text { font-size: 13px; color: #0f1419; line-height: 1.4; flex: 1; }
+.notif-text em { font-style: normal; color: #ff8b94; }
+.notif-time { font-size: 11px; color: #aab8c2; margin-top: 3px; }
+.notif-dot { width: 8px; height: 8px; background: #ff6b6b; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+
+/* ── Profile toggle switch ── */
+.profile-toggle-switch {
+  width: 46px;
+  height: 26px;
+  border-radius: 9999px;
+  background: #ddd;
+  position: relative;
+  transition: background 0.2s;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.profile-toggle-switch.on { background: #4c6ef5; }
+.profile-toggle-knob {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  top: 3px;
+  left: 3px;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+}
+.profile-toggle-switch.on .profile-toggle-knob { transform: translateX(20px); }
+
+/* ── Hover profile card ── */
+.hover-profile-card {
+  background: #ffffff;
+  border: 1px solid #e8ecef;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.13);
+  padding: 16px;
+  width: 260px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  pointer-events: none;
+}
+.hover-profile-loading { font-size: 13px; color: #aaa; margin: 0; text-align: center; }
+.hover-profile-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.hover-profile-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #e1e8ed;
+}
+.hover-profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.hover-profile-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  border-radius: 50%;
+}
+.hover-profile-name { font-size: 14px; font-weight: 700; color: #0f1419; }
+.hover-profile-handle { font-size: 12px; color: #8e9aa6; }
+.hover-profile-private-badge { margin-left: auto; font-size: 11px; color: #8e9aa6; background: #f5f5f5; border-radius: 6px; padding: 2px 7px; }
+.hover-profile-bio { font-size: 13px; color: #536471; margin: 0 0 10px; line-height: 1.4; }
+.hover-profile-private-msg { font-size: 13px; color: #aab8c2; margin: 0; text-align: center; padding: 8px 0; }
+.hover-profile-posts-label { font-size: 11px; font-weight: 700; color: #aab8c2; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 6px; }
+.hover-profile-posts { border-top: 1px solid #f0f4f7; padding-top: 10px; }
+.hover-profile-post-item {
+  font-size: 12px;
+  color: #0f1419;
+  padding: 4px 0;
+  border-bottom: 1px solid #f7f9f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hover-profile-post-item:last-child { border-bottom: none; }

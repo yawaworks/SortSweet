@@ -17,6 +17,8 @@ export default function PostDetailSidebar({
   const [editBody, setEditBody] = useState('');
   const [commentText, setCommentText] = useState('');
   const menuRef = useRef(null);
+  const menuBtnRef = useRef(null);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
 
   const currentUserName = currentUser?.username || currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User';
   const currentUserAvatar = currentUser?.avatar || currentUser?.avatarUrl || null;
@@ -110,12 +112,24 @@ export default function PostDetailSidebar({
         <span className="sidebar-topbar-post-name">{plainTextLabel || 'Untitled Entry'}</span>
 
         <div className="sidebar-action-menu-wrapper" ref={menuRef}>
-          <button type="button" className="sidebar-three-dots-btn" onClick={() => setShowMenu(!showMenu)} title="Options">
+          <button
+            type="button"
+            className="sidebar-three-dots-btn"
+            ref={menuBtnRef}
+            onClick={() => {
+              if (!showMenu && menuBtnRef.current) {
+                const r = menuBtnRef.current.getBoundingClientRect();
+                setDropdownPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
+              }
+              setShowMenu(v => !v);
+            }}
+            title="Options"
+          >
             •••
           </button>
 
           {showMenu && (
-            <div className="sidebar-dropdown-menu">
+            <div className="sidebar-dropdown-menu" style={{ top: dropdownPos.top, right: dropdownPos.right }}>
               {isOp && (
                 <>
                   <button type="button" onClick={() => { setIsEditing(true); setShowMenu(false); }}>Edit Post</button>

@@ -79,6 +79,7 @@ function parseCompiledHtml(htmlString) {
 function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, viewMode, isPinned, onTogglePin, canPin }) {
   const { title, bodyPreview } = parseCompiledHtml(item.text);
   const [showFeedMenu, setShowFeedMenu] = useState(false);
+  const [feedMenuPos, setFeedMenuPos] = useState({ top: 0, right: 0 });
   const feedMenuRef = useRef(null);
 
   const displayAuthor = item.authorName || 'Anonymous';
@@ -131,14 +132,21 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, viewM
         >
           <button
             className="control-btn feed-three-dots-trigger"
-            onClick={() => setShowFeedMenu(!showFeedMenu)}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!showFeedMenu) {
+                const r = e.currentTarget.getBoundingClientRect();
+                setFeedMenuPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
+              }
+              setShowFeedMenu(v => !v);
+            }}
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', fontSize: '14px', color: '#8e9aa6', fontWeight: 'bold', lineHeight: 1 }}
           >
             •••
           </button>
 
           {showFeedMenu && (
-            <div className="sidebar-dropdown-menu" style={{ position: 'absolute', right: 0, top: '24px', zIndex: 99999, display: 'block', background: '#ffffff', boxShadow: '0px 4px 16px rgba(0,0,0,0.12)', borderRadius: '8px', minWidth: '140px', padding: '4px 0', border: '1px solid #f0e6e1' }}>
+            <div className="sidebar-dropdown-menu" style={{ position: 'fixed', top: feedMenuPos.top, right: feedMenuPos.right, zIndex: 999999, display: 'block', background: '#ffffff', boxShadow: '0px 4px 16px rgba(0,0,0,0.12)', borderRadius: '8px', minWidth: '160px', padding: '4px 0', border: '1px solid #f0e6e1' }}>
               <button 
                 type="button" 
                 style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#2c3e50' }}
@@ -297,14 +305,21 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, viewM
       >
         <button
           className="control-btn feed-three-dots-trigger"
-          onClick={() => setShowFeedMenu(!showFeedMenu)}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!showFeedMenu) {
+              const r = e.currentTarget.getBoundingClientRect();
+              setFeedMenuPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
+            }
+            setShowFeedMenu(v => !v);
+          }}
           style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', fontSize: '14px', color: '#8e9aa6', fontWeight: 'bold', lineHeight: 1 }}
         >
           •••
         </button>
 
         {showFeedMenu && (
-          <div className="sidebar-dropdown-menu" style={{ position: 'absolute', right: 0, top: '24px', zIndex: 99999, display: 'block', background: '#ffffff', boxShadow: '0px 4px 16px rgba(0,0,0,0.12)', borderRadius: '8px', minWidth: '140px', padding: '4px 0', border: '1px solid #f0e6e1' }}>
+          <div className="sidebar-dropdown-menu" style={{ position: 'fixed', top: feedMenuPos.top, right: feedMenuPos.right, zIndex: 999999, display: 'block', background: '#ffffff', boxShadow: '0px 4px 16px rgba(0,0,0,0.12)', borderRadius: '8px', minWidth: '160px', padding: '4px 0', border: '1px solid #f0e6e1' }}>
             <button 
               type="button" 
               style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#2c3e50' }}

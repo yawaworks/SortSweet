@@ -28,7 +28,6 @@ export default function App() {
   const [showDraftsModal, setShowDraftsModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showCreatePanel, setShowCreatePanel] = useState(false);
-  const [pinnedIds, setPinnedIds] = useState([]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('newest');
@@ -104,11 +103,14 @@ export default function App() {
     image: row.image_url || null,
     authorName: row.author_name,
     authorAvatar: row.author_avatar || '',
-    timestamp: row.created_at || '',
+    timestamp: row.created_at
+      ? new Date(row.created_at).toLocaleString([], {
+          day: '2-digit', month: 'short', year: 'numeric',
+          hour: '2-digit', minute: '2-digit', hour12: false
+        })
+      : '',
     createdAt: row.created_at ? new Date(row.created_at).getTime() : 0,
     comments: row.comments || [],
-    liked: row.liked || false,
-    bookmarked: row.bookmarked || false,
   });
 
   const fetchOrCreateProfile = async (authUser) => {
@@ -191,8 +193,6 @@ export default function App() {
       if ('text' in updatedFields) dbFields.text = updatedFields.text;
       if ('category' in updatedFields) dbFields.category = updatedFields.category;
       if ('comments' in updatedFields) dbFields.comments = updatedFields.comments;
-      if ('liked' in updatedFields) dbFields.liked = updatedFields.liked;
-      if ('bookmarked' in updatedFields) dbFields.bookmarked = updatedFields.bookmarked;
 
       if (Object.keys(dbFields).length === 0) return;
 
@@ -220,14 +220,6 @@ export default function App() {
   };
 
   const handleMoveItem = (id, newCategory) => handleUpdateItem(id, { category: newCategory });
-
-  const handleTogglePin = (id) => {
-    setPinnedIds(prev => {
-      if (prev.includes(id)) return prev.filter(p => p !== id);
-      if (prev.length >= 3) return prev;
-      return [...prev, id];
-    });
-  };
 
   // ── Comments (stored as JSON array in the post row) ──
   const handleAddComment = async (postId, commentText, authorName, authorAvatar) => {
@@ -407,8 +399,6 @@ export default function App() {
                 onUpdateItem={handleUpdateItem}
                 viewMode={viewMode}
                 sidebarOpen={!!activePost}
-                pinnedIds={pinnedIds}
-                onTogglePin={handleTogglePin}
               />
           }
         </div>

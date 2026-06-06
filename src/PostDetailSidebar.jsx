@@ -1,321 +1,711 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import './JournalEditor.css';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { supabase } from './supabaseClient';
+import AuthPage from './AuthPage';
+import BrainDumpInput from './BrainDumpInput';
+import ForumFeed from './ForumFeed';
+import PostDetailSidebar from './PostDetailSidebar';
+import DraftsManager from './DraftsManager';
+import ProfileDashboard from './ProfileDashboard';
+import './App.css';
 
-export default function PostDetailSidebar({ 
-  item, onClose, onDeletePost, onUpdateItem,
-  onAddComment, onDeleteComment, currentUser 
-}) {
-  const [showMenu, setShowMenu] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState('');
-  const [editBody, setEditBody] = useState('');
-  const [commentText, setCommentText] = useState('');
-  const [replyingTo, setReplyingTo] = useState(null); // { commentId, author }
-  const menuRef = useRef(null);
-  const menuBtnRef = useRef(null);
-  const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
+export default function App() {
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem('sortsweet-user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
+  const [userId, setUserId] = useState(null);
 
-  const currentUserName = currentUser?.nickname || currentUser?.username || currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User';
-  const currentUserAvatar = currentUser?.avatar || currentUser?.avatarUrl || null;
-  const isOp = item._userId ? (item._userId === currentUser?.id) : (item.authorName === currentUserName);
+  const [items, setItems] = useState([]);
+  const [itemsLoading, setItemsLoading] = useState(false);
+
+  const [drafts, setDrafts] = useState(() => {
+    const savedDrafts = localStorage.getItem('sortsweet-drafts');
+    return savedDrafts ? JSON.parse(savedDrafts) : [];
+  });
+
+  const [activePostId, setActivePostId] = useState(null);
+  const [activeDraft, setActiveDraft] = useState(null);
+  const [showDraftsModal, setShowDraftsModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showCreatePanel, setShowCreatePanel] = useState(false);
+  const [showBookmarks, setShowBookmarks] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+
+  const [userLikes, setUserLikes] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('sortsweet-likes') || '{}'); } catch { return {}; }
+  });
+  const [userBookmarks, setUserBookmarks] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('sortsweet-bookmarks') || '{}'); } catch { return {}; }
+  });
+
+  useEffect(() => { localStorage.setItem('sortsweet-likes', JSON.stringify(userLikes)); }, [userLikes]);
+  useEffect(() => { localStorage.setItem('sortsweet-bookmarks', JSON.stringify(userBookmarks)); }, [userBookmarks]);
+  const userLikesRef = useRef(userLikes);
+  const userBookmarksRef = useRef(userBookmarks);
+  useEffect(() => { userLikesRef.current = userLikes; }, [userLikes]);
+  useEffect(() => { userBookmarksRef.current = userBookmarks; }, [userBookmarks]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('newest');
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [viewMode, setViewMode] = useState('list');
+  const [showSortPanel, setShowSortPanel] = useState(false);
+  const sortPanelRef = useRef(null);
+  const notifRef = useRef(null);
 
   useEffect(() => {
-    if (item) {
-      setEditTitle(getPlainTitleText(item.text) || '');
-      const el = document.createElement('div');
-      el.innerHTML = getBodyHtmlContent(item.text);
-      setEditBody((el.textContent || '').trim());
-    }
-  }, [item]);
-
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (menuRef.current && !menuRef.current.contains(event.target)) setShowMenu(false);
+    function handleClickOutside(e) {
+      if (sortPanelRef.current && !sortPanelRef.current.contains(e.target)) setShowSortPanel(false);
+      if (notifRef.current && !notifRef.current.contains(e.target)) setShowNotifications(false);
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  if (!item) return null;
+  useEffect(() => {
+    localStorage.setItem('sortsweet-drafts', JSON.stringify(drafts));
+  }, [drafts]);
 
-  const getPlainTitleText = (htmlString) => {
-    if (!htmlString) return '';
-    const el = document.createElement('div');
-    el.innerHTML = htmlString;
-    const titleEl = el.querySelector('.post-compiled-title');
-    if (titleEl) return titleEl.textContent || '';
-    const heading = el.querySelector('h1, h2, h3');
-    return heading ? heading.textContent || '' : '';
-  };
+  // ── Auth listener ──
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) { setUserId(session.user.id); fetchOrCreateProfile(session.user); }
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) { setUserId(session.user.id); fetchOrCreateProfile(session.user); }
+      else if (event === 'SIGNED_OUT') {
+        setUser(null); setUserId(null); setItems([]);
+        localStorage.removeItem('sortsweet-user');
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
-  const getBodyHtmlContent = (htmlString) => {
-    if (!htmlString) return '';
-    const el = document.createElement('div');
-    el.innerHTML = htmlString;
-    const bodyEl = el.querySelector('.post-compiled-body');
-    return bodyEl ? bodyEl.innerHTML : htmlString;
-  };
+  // ── Open post from shared URL ──
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const postId = params.get('post');
+    if (postId) setActivePostId(postId);
+  }, []);
 
-  const plainTextLabel = getPlainTitleText(item.text);
-  const bodyContentHtml = getBodyHtmlContent(item.text);
-  const bodyContentWithoutImages = bodyContentHtml.replace(/<img[^>]*>/gi, '');
-
-  const formattedTimestamp = React.useMemo(() => {
-    const raw = item.timestamp || item.createdAt;
-    if (!raw) return '';
-    const d = new Date(raw);
-    if (isNaN(d.getTime())) return item.timestamp || '';
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const yyyy = d.getFullYear();
-    const hh = String(d.getHours()).padStart(2, '0');
-    const min = String(d.getMinutes()).padStart(2, '0');
-    return `${dd}-${mm}-${yyyy} ${hh}:${min}`;
-  }, [item.id, item.timestamp]);
-
-  const formattedDateHeader = React.useMemo(() => {
-    const raw = item.timestamp || item.createdAt;
-    if (!raw) return '';
-    const d = new Date(raw);
-    if (isNaN(d.getTime())) return '';
-    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-  }, [item.id, item.timestamp]);
-
-  const handleSaveEdit = () => {
-    if (!editTitle.trim()) return;
-    // Preserve existing body HTML; only rebuild if user explicitly edited the plain-text body
-    const existingBodyHtml = getBodyHtmlContent(item.text);
-    const existingBodyText = (() => { const el = document.createElement('div'); el.innerHTML = existingBodyHtml; return (el.textContent || '').trim(); })();
-    const bodyHtml = editBody.trim() !== existingBodyText
-      ? `<p>${editBody.trim().replace(/\n/g, '</p><p>')}</p>`
-      : existingBodyHtml;
-    const escapedTitle = editTitle.trim().replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const rebuilt = `<div class="journal-post-compiled"><h2 class="post-compiled-title">${escapedTitle}</h2><div class="post-compiled-body rich-text-display-pane">${bodyHtml}</div></div>`;
-    onUpdateItem(item.id, { text: rebuilt });
-    setIsEditing(false);
-  };
-
-  const handlePostComment = () => {
-    if (!commentText.trim()) return;
-    if (typeof onAddComment === 'function') {
-      // Always thread under the root comment (not a reply-to-reply), so all replies stay visible
-      const rootCommentId = replyingTo?.rootCommentId || replyingTo?.commentId || null;
-      onAddComment(item.id, commentText, currentUserName, currentUserAvatar, rootCommentId);
+  // When items load, also check URL param (in case items weren't ready yet)
+  useEffect(() => {
+    if (items.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const postId = params.get('post');
+    if (postId && items.find(i => i.id === postId)) {
+      setActivePostId(postId);
+      // Clean URL without reload
+      window.history.replaceState({}, '', window.location.pathname);
     }
-    setCommentText('');
-    setReplyingTo(null);
+  }, [items]);
+
+
+
+  // ── Realtime subscription for comments/likes (so cross-user updates appear) ──
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabase
+      .channel('posts-realtime')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'posts' }, (payload) => {
+        setItems(prev => prev.map(item => {
+          if (item.id === payload.new.id) return { ...item, ...rowToItemPartial(payload.new) };
+          return item;
+        }));
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, (payload) => {
+        if (payload.new.user_id !== userId && payload.new.is_public) {
+          const row = payload.new;
+          const newItem = {
+            id: row.id, text: row.text, category: row.category,
+            image: row.image_url || null,
+            authorName: row.author_name, authorAvatar: row.author_avatar || '',
+            timestamp: row.created_at ? new Date(row.created_at).toLocaleString([], { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '',
+            createdAt: row.created_at ? new Date(row.created_at).getTime() : 0,
+            comments: row.comments || [], isPublic: row.is_public || false,
+            archived: row.archived || false,
+            liked: !!(userLikesRef.current[row.id]),
+            bookmarked: !!(userBookmarksRef.current[row.id]),
+            _userId: row.user_id,
+          };
+          setItems(prev => [newItem, ...prev]);
+        }
+      })
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [userId]);
+
+  // ── Realtime notifications ──
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabase
+      .channel(`notifications-realtime-${userId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `recipient_id=eq.${userId}` },
+        (payload) => {
+          setNotifications(prev => {
+            // Avoid duplicate if fetchNotifications already added it
+            if (prev.find(n => n.id === payload.new.id)) return prev;
+            return [payload.new, ...prev];
+          });
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIPTION_ERROR') console.error('Notification subscription error');
+      });
+    return () => supabase.removeChannel(channel);
+  }, [userId]);
+
+  const fetchNotifications = async (uid) => {
+    try {
+      const { data } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('recipient_id', uid)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (data) setNotifications(data);
+    } catch (err) { console.error('fetchNotifications error:', err); }
   };
 
-  const authorName = item.authorName || currentUserName;
-  const authorAvatar = item.authorAvatar || currentUserAvatar;
-  const authorHandle = '@' + authorName.toLowerCase().replace(/\s+/g, '_');
+  const fetchPosts = async (uid) => {
+    setItemsLoading(true);
+    try {
+      const [ownResult, publicResult] = await Promise.all([
+        supabase.from('posts').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
+        supabase.from('posts').select('*').eq('is_public', true).neq('user_id', uid).order('created_at', { ascending: false }),
+      ]);
+      if (ownResult.error) throw ownResult.error;
+      if (publicResult.error) throw publicResult.error;
+      const combined = [...(ownResult.data || []), ...(publicResult.data || [])];
+      const seen = new Set();
+      const deduped = combined.filter(row => { if (seen.has(row.id)) return false; seen.add(row.id); return true; });
+      deduped.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      const likes = userLikesRef.current;
+      const bookmarks = userBookmarksRef.current;
+      setItems(deduped.map(row => ({
+        id: row.id, text: row.text, category: row.category,
+        image: row.image_url || null,
+        authorName: row.author_name, authorAvatar: row.author_avatar || '',
+        timestamp: row.created_at ? new Date(row.created_at).toLocaleString([], { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '',
+        createdAt: row.created_at ? new Date(row.created_at).getTime() : 0,
+        comments: row.comments || [], isPublic: row.is_public || false,
+        archived: row.archived || false,
+        liked: !!(likes[row.id]),
+        bookmarked: !!(bookmarks[row.id]),
+        _userId: row.user_id,
+      })));
+    } catch (err) { console.error('fetchPosts error:', err); }
+    finally { setItemsLoading(false); }
+  };
 
-  // Group: top-level comments + their replies
-  const topLevelComments = (item.comments || []).filter(c => !c.replyTo);
-  const getReplies = (commentId) => (item.comments || []).filter(c => c.replyTo === commentId);
+  const rowToItem = (row) => ({
+    id: row.id, text: row.text, category: row.category,
+    image: row.image_url || null,
+    authorName: row.author_name, authorAvatar: row.author_avatar || '',
+    timestamp: row.created_at ? new Date(row.created_at).toLocaleString([], { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '',
+    createdAt: row.created_at ? new Date(row.created_at).getTime() : 0,
+    comments: row.comments || [], isPublic: row.is_public || false,
+    archived: row.archived || false,
+    liked: !!(userLikes[row.id]),
+    bookmarked: !!(userBookmarks[row.id]),
+    _userId: row.user_id,
+  });
+
+  const rowToItemPartial = (row) => ({
+    text: row.text, category: row.category, image: row.image_url || null,
+    authorName: row.author_name, authorAvatar: row.author_avatar || '',
+    comments: row.comments || [], isPublic: row.is_public || false,
+    archived: row.archived || false,
+    // do NOT overwrite liked/bookmarked — those are per-user local state
+  });
+
+  const fetchOrCreateProfile = async (authUser) => {
+    try {
+      const { data: profile } = await supabase.from('profiles').select('*').eq('id', authUser.id).single();
+      let userData;
+      if (profile) {
+        userData = {
+          id: authUser.id,
+          username: profile.username,
+          nickname: profile.nickname || profile.username,
+          email: authUser.email,
+          bio: profile.bio || '',
+          avatar: profile.avatar_url || '',
+          isPublic: profile.is_public !== false,
+        };
+      } else {
+        const meta = authUser.user_metadata || {};
+        userData = {
+          id: authUser.id,
+          username: meta.username || authUser.email.split('@')[0],
+          nickname: meta.nickname || meta.username || authUser.email.split('@')[0],
+          email: authUser.email, bio: '', avatar: '', isPublic: true,
+        };
+      }
+      setUser(userData);
+      localStorage.setItem('sortsweet-user', JSON.stringify(userData));
+      // Always fetch posts after profile is ready
+      fetchPosts(authUser.id);
+      fetchNotifications(authUser.id);
+    } catch (err) { console.error(err); }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUser(null); setUserId(null); setItems([]);
+    localStorage.removeItem('sortsweet-user');
+    setActivePostId(null);
+  };
+
+  // Push a notification row to Supabase
+  const pushNotification = async (recipientId, type, actorName, postId, postTitle) => {
+    if (!recipientId || recipientId === userId) return; // don't notify yourself
+    const { error } = await supabase.from('notifications').insert({
+      recipient_id: recipientId,
+      actor_name: actorName,
+      type, // 'like' | 'comment' | 'reply'
+      post_id: postId,
+      post_title: postTitle,
+      read: false,
+      created_at: new Date().toISOString(),
+    });
+    if (error) console.error('pushNotification error:', error.message, error);
+  };
+
+  const handleAddItem = async (content, category, imageUrl) => {
+    const currentName = user?.nickname || user?.username || 'Original Poster';
+    const newItem = {
+      id: crypto.randomUUID(), text: content, category,
+      image: imageUrl || null, authorName: currentName,
+      authorAvatar: user?.avatar || '',
+      timestamp: new Date().toLocaleString([], { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      createdAt: Date.now(), comments: [],
+    };
+    setItems(prev => [newItem, ...prev]);
+    setShowCreatePanel(false);
+    if (activeDraft) { setDrafts(prev => prev.filter(d => d.id !== activeDraft.id)); setActiveDraft(null); }
+    try {
+      const { error } = await supabase.from('posts').insert({
+        id: newItem.id, user_id: userId, text: newItem.text, category: newItem.category,
+        image_url: newItem.image, author_name: newItem.authorName,
+        author_avatar: newItem.authorAvatar, comments: [],
+      });
+      if (error) throw error;
+    } catch (err) {
+      console.error('insert error:', err);
+      setItems(prev => prev.filter(i => i.id !== newItem.id));
+      alert('Failed to save post: ' + err.message);
+    }
+  };
+
+  const handleUpdateItem = async (id, updatedFields) => {
+    // Handle bookmarks locally (per-user), not on the shared post row
+    if ('bookmarked' in updatedFields) {
+      setUserBookmarks(prev => {
+        const next = { ...prev };
+        if (updatedFields.bookmarked) next[id] = true;
+        else delete next[id];
+        return next;
+      });
+    }
+    setItems(prev => prev.map(item => item.id === id ? { ...item, ...updatedFields } : item));
+    try {
+      const dbFields = {};
+      if ('text' in updatedFields) dbFields.text = updatedFields.text;
+      if ('category' in updatedFields) dbFields.category = updatedFields.category;
+      if ('comments' in updatedFields) dbFields.comments = updatedFields.comments;
+      if ('isPublic' in updatedFields) dbFields.is_public = updatedFields.isPublic;
+      if ('archived' in updatedFields) dbFields.archived = updatedFields.archived;
+      if (Object.keys(dbFields).length === 0) return;
+      const { error } = await supabase.from('posts').update(dbFields).eq('id', id).eq('user_id', userId);
+      if (error) throw error;
+    } catch (err) { console.error('update error:', err); }
+  };
+
+  const handleDeleteItem = async (id) => {
+    if (activePostId === id) setActivePostId(null);
+    setItems(prev => prev.filter(item => item.id !== id));
+    try {
+      const { error } = await supabase.from('posts').delete().eq('id', id).eq('user_id', userId);
+      if (error) throw error;
+    } catch (err) { console.error('delete error:', err); }
+  };
+
+  const handleMoveItem = (id, newCategory) => handleUpdateItem(id, { category: newCategory });
+
+  // ── Comments — stored as JSON in post row ──
+  // Uses RPC or direct update; also pushes notifications
+  const handleAddComment = async (postId, commentText, authorName, authorAvatar, replyToId = null) => {
+    const post = items.find(i => i.id === postId);
+    if (!post) return;
+
+    // Find parent comment info for reply
+    const parentComment = replyToId ? (post.comments || []).find(c => c.id === replyToId) : null;
+
+    const newComment = {
+      id: crypto.randomUUID(),
+      text: commentText,
+      author: authorName,
+      authorAvatar: authorAvatar || '',
+      authorUserId: userId,
+      timestamp: new Date().toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      replyTo: replyToId || null,
+      replyToAuthor: parentComment?.author || null,
+    };
+    const updatedComments = [...(post.comments || []), newComment];
+
+    // Optimistic update — use direct Supabase update (not just local state) so other users see it
+    setItems(prev => prev.map(item => item.id === postId ? { ...item, comments: updatedComments } : item));
+    try {
+      const { error } = await supabase.from('posts').update({ comments: updatedComments }).eq('id', postId);
+      if (error) throw error;
+
+      // Notification: notify post owner if it's someone else's post
+      const el = document.createElement('div'); el.innerHTML = post.text || '';
+      const titleEl = el.querySelector('.post-compiled-title');
+      const postTitle = titleEl ? titleEl.textContent.trim() : 'a post';
+      if (post._userId && post._userId !== userId) {
+        await pushNotification(post._userId, replyToId ? 'reply' : 'comment', authorName, postId, postTitle);
+      }
+      // Notify parent comment author if replying to someone other than the post owner and other than self
+      if (replyToId && parentComment?.authorUserId && parentComment.authorUserId !== userId && parentComment.authorUserId !== post._userId) {
+        await pushNotification(parentComment.authorUserId, 'reply', authorName, postId, postTitle);
+      }
+    } catch (err) { console.error('comment error:', err); }
+  };
+
+  const handleDeleteComment = async (postId, commentId) => {
+    const post = items.find(i => i.id === postId);
+    if (!post) return;
+    const updatedComments = (post.comments || []).filter(c => c.id !== commentId && c.replyTo !== commentId);
+    setItems(prev => prev.map(item => item.id === postId ? { ...item, comments: updatedComments } : item));
+    try {
+      const { error } = await supabase.from('posts').update({ comments: updatedComments }).eq('id', postId);
+      if (error) throw error;
+    } catch (err) { console.error('deleteComment error:', err); }
+  };
+
+  // ── Like with notification ──
+  const handleLikeItem = async (id) => {
+    const post = items.find(i => i.id === id);
+    if (!post) return;
+    const newLiked = !userLikes[id];
+    setUserLikes(prev => { const next = { ...prev }; if (newLiked) next[id] = true; else delete next[id]; return next; });
+    setItems(prev => prev.map(item => item.id === id ? { ...item, liked: newLiked } : item));
+    try {
+      if (newLiked && post._userId && post._userId !== userId) {
+        const el = document.createElement('div'); el.innerHTML = post.text || '';
+        const titleEl = el.querySelector('.post-compiled-title');
+        const postTitle = titleEl ? titleEl.textContent.trim() : 'a post';
+        const actorName = user?.nickname || user?.username || 'Someone';
+        await pushNotification(post._userId, 'like', actorName, id, postTitle);
+      }
+    } catch (err) { console.error('like error:', err); }
+  };
+
+  const markNotificationsRead = async () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    try {
+      await supabase.from('notifications').update({ read: true }).eq('recipient_id', userId).eq('read', false);
+    } catch (e) { /* silent */ }
+  };
+
+  const handleSaveDraft = (draftObject) => {
+    setDrafts(prev => {
+      const exists = prev.find(d => d.id === draftObject.id);
+      return exists ? prev.map(d => d.id === draftObject.id ? draftObject : d) : [draftObject, ...prev];
+    });
+    setShowCreatePanel(false);
+  };
+
+  const handleLoadDraft = (draft) => { setActiveDraft(draft); setShowDraftsModal(false); setShowCreatePanel(true); };
+  const handleDeleteDraft = (draftId) => {
+    setDrafts(prev => prev.filter(d => d.id !== draftId));
+    if (activeDraft?.id === draftId) setActiveDraft(null);
+  };
+
+  const handleUpdateUserProfile = (updatedUserObj) => {
+    setUser(updatedUserObj);
+    localStorage.setItem('sortsweet-user', JSON.stringify(updatedUserObj));
+  };
+
+  const displayedItems = useMemo(() => {
+    let result = items
+      .filter(i => !i.archived)
+      .map(i => ({ ...i, liked: !!(userLikes[i.id]), bookmarked: !!(userBookmarks[i.id]) }));
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(item => {
+        const el = document.createElement('div'); el.innerHTML = item.text || '';
+        return (el.textContent || '').toLowerCase().includes(q);
+      });
+    }
+    if (filterCategory !== 'all') result = result.filter(i => i.category === filterCategory);
+    if (sortBy === 'newest') result.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    else if (sortBy === 'oldest') result.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    else if (sortBy === 'category') result.sort((a, b) => (a.category || '').localeCompare(b.category || ''));
+    else if (sortBy === 'comments') result.sort((a, b) => (b.comments?.length || 0) - (a.comments?.length || 0));
+    return result;
+  }, [items, searchQuery, filterCategory, sortBy, userLikes, userBookmarks]);
+
+  if (!user) return <AuthPage onAuthSuccess={(u) => { if (u?.id) { setUserId(u.id); fetchOrCreateProfile(u); } }} />;
+  const activePost = items.find(item => item.id === activePostId);
+  const unreadCount = notifications.filter(n => !n.read).length;
+  const displayName = user?.nickname || user?.username || 'User';
 
   return (
-    <motion.aside
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 20 }}
-      transition={{ type: "spring", stiffness: 500, damping: 35 }}
-      className="post-detail-sidebar-container"
-    >
-      {/* Top bar */}
-      <div className="sidebar-upper-control-panel">
-        <span className="sidebar-topbar-post-name">{plainTextLabel || 'Untitled Entry'}</span>
-        <div className="sidebar-action-menu-wrapper" ref={menuRef}>
-          <button type="button" className="sidebar-three-dots-btn" ref={menuBtnRef}
-            onClick={() => {
-              if (!showMenu && menuBtnRef.current) {
-                const r = menuBtnRef.current.getBoundingClientRect();
-                setDropdownPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
-              }
-              setShowMenu(v => !v);
-            }} title="Options">•••</button>
-          {showMenu && (
-            <div className="sidebar-dropdown-menu" style={{ top: dropdownPos.top, right: dropdownPos.right }}>
-              {isOp && (<>
-                <button type="button" onClick={() => { setIsEditing(true); setShowMenu(false); }}>Edit Post</button>
-                <button type="button" className="menu-delete-action" onClick={() => { if (window.confirm("Delete this entry permanently?")) { onDeletePost(item.id); onClose(); } }}>Delete Post</button>
-              </>)}
-              <button type="button" onClick={() => { alert("Following thread..."); setShowMenu(false); }}>Follow Thread</button>
-              <button type="button" onClick={() => { try { navigator.clipboard.writeText(window.location.origin + '/?post=' + item.id); } catch(e) { prompt('Copy this URL:', window.location.origin + '/?post=' + item.id); } setShowMenu(false); }}>Share</button>
-            </div>
-          )}
-          <button className="sidebar-close-panel-btn" onClick={onClose} title="Close">✕</button>
-        </div>
-      </div>
-
-      {/* Scrollable body */}
-      <div className="sidebar-scrollable-body-content">
-        {isEditing ? (
-          <div className="sidebar-edit-mode-container">
-            <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} className="sidebar-edit-title-input" placeholder="Post title..." />
-            <textarea value={editBody} onChange={e => setEditBody(e.target.value)} className="sidebar-edit-textarea" placeholder="Post body..." rows={5} />
-            <div className="sidebar-edit-actions">
-              <button type="button" className="edit-cancel" onClick={() => setIsEditing(false)}>Cancel</button>
-              <button type="button" className="edit-save" onClick={handleSaveEdit}>Save</button>
-            </div>
+    <div className="app-container">
+      <header className="app-header">
+        <div className="header-wrapper-flex">
+          <div className="header-left">
+            <h1>Sort<span className="highlight">Sweet</span></h1>
+            <p>Welcome back, <span className="highlight">{displayName}</span>!</p>
           </div>
-        ) : (
-          <h1 className="sidebar-main-compiled-headline">{plainTextLabel || 'Untitled Entry'}</h1>
-        )}
+          <div className="header-right-action-bay">
+            <button className="drafts-drawer-toggle-btn" onClick={() => setShowProfileModal(true)}>⚙️ Settings</button>
+            <button className="drafts-drawer-toggle-btn" onClick={() => setShowDraftsModal(true)}>📋 Drafts ({drafts.length})</button>
+            <button className="drafts-drawer-toggle-btn" onClick={() => setShowBookmarks(true)}>★ Bookmarks</button>
+            <button className="drafts-drawer-toggle-btn" onClick={() => setShowArchive(true)}>▼ Archive</button>
 
-        {/* ── Separator line between title and content (like reference screenshot) ── */}
-        {!isEditing && formattedDateHeader && (
-          <div className="sidebar-date-header-row">
-            <span className="sidebar-date-header-line" />
-            <span className="sidebar-date-header-label">{formattedDateHeader}</span>
-            <span className="sidebar-date-header-line" />
-          </div>
-        )}
-
-        {/* Author row */}
-        <div className="sidebar-author-op-profile-row">
-          <div className="sidebar-author-avatar-circle">
-            {authorAvatar
-              ? <img src={authorAvatar} alt={authorName} />
-              : <div className="sidebar-avatar-fallback">{authorName.charAt(0).toUpperCase()}</div>
-            }
-          </div>
-          <div className="sidebar-author-identity-info">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span className="sidebar-author-display-name">{authorName}</span>
-              {isOp && <span className="sidebar-op-badge">OP</span>}
-            </div>
-            <span className="sidebar-author-handle-sub">{authorHandle} · {formattedTimestamp}</span>
-          </div>
-        </div>
-
-        {/* Body content */}
-        {!isEditing && (
-          <div className="sidebar-compiled-html-body-view rich-text-display-pane">
-            <div dangerouslySetInnerHTML={{ __html: bodyContentWithoutImages }} />
-            {item.image && <img src={item.image} alt="Attachment" className="sidebar-body-embedded-media" />}
-          </div>
-        )}
-
-        {/* Action bar */}
-        <div className="sidebar-post-action-bar">
-          <button type="button" className="sidebar-action-react-btn">
-            <span className="sidebar-action-icon">🙂</span> React to Post
-          </button>
-          <div className="sidebar-action-bar-right">
-            <button type="button" className="sidebar-action-pill-btn"><span>🔔</span> Follow</button>
-            <button type="button" className="sidebar-action-pill-btn sidebar-action-pill-icon-only" onClick={() => alert('Link copied!')}>🔗</button>
-          </div>
-        </div>
-
-        <div className="sidebar-divider" />
-
-        {/* Comments section */}
-        <div className="sidebar-comments-section">
-          <p className="sidebar-comments-count">{(item.comments || []).length} comment{(item.comments || []).length !== 1 ? 's' : ''}</p>
-
-          <AnimatePresence>
-            {topLevelComments.map((comment) => (
-              <React.Fragment key={comment.id}>
-                <motion.div
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  className="sidebar-comment-item"
-                >
-                  <div className="sidebar-author-avatar-circle sidebar-comment-avatar">
-                    {comment.authorAvatar
-                      ? <img src={comment.authorAvatar} alt={comment.author} />
-                      : <div className="sidebar-avatar-fallback">{(comment.author || 'U').charAt(0).toUpperCase()}</div>
-                    }
+            {/* ── Notifications bell ── */}
+            <div ref={notifRef} style={{ position: 'relative' }}>
+              <button
+                className="drafts-drawer-toggle-btn notif-bell-btn"
+                onClick={() => { setShowNotifications(v => !v); if (!showNotifications) markNotificationsRead(); }}
+              >
+                🔔
+                {unreadCount > 0 && <span className="notif-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>}
+              </button>
+              {showNotifications && (
+                <div className="notif-dropdown">
+                  <div className="notif-dropdown-header">
+                    <span>Notifications</span>
+                    {notifications.length > 0 && (
+                      <button onClick={async () => {
+                        setNotifications([]);
+                        await supabase.from('notifications').delete().eq('recipient_id', userId);
+                      }} className="notif-clear-btn">Clear all</button>
+                    )}
                   </div>
-                  <div className="sidebar-comment-body">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span className="sidebar-author-display-name" style={{ fontSize: 13 }}>{comment.author || 'User'}</span>
-                      {(comment.author === authorName) && <span className="sidebar-op-badge">OP</span>}
-                      <span className="sidebar-author-handle-sub" style={{ marginLeft: 'auto' }}>{comment.timestamp}</span>
-                      {typeof onDeleteComment === 'function' && (
-                        <button className="sidebar-comment-delete-btn" onClick={() => onDeleteComment(item.id, comment.id)} title="Delete comment">✕</button>
-                      )}
-                    </div>
-                    <p className="sidebar-comment-text">{comment.text}</p>
-                    <button
-                      className="sidebar-comment-reply-btn"
-                      onClick={() => setReplyingTo(replyingTo?.commentId === comment.id ? null : { commentId: comment.id, rootCommentId: comment.id, author: comment.author })}
-                    >
-                      ↩ Reply
-                    </button>
-                  </div>
-                </motion.div>
-
-                {/* Nested replies */}
-                {getReplies(comment.id).map(reply => (
-                  <motion.div
-                    key={reply.id}
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    className="sidebar-comment-item sidebar-comment-reply-indent"
-                  >
-                    <div className="sidebar-author-avatar-circle sidebar-comment-avatar">
-                      {reply.authorAvatar
-                        ? <img src={reply.authorAvatar} alt={reply.author} />
-                        : <div className="sidebar-avatar-fallback">{(reply.author || 'U').charAt(0).toUpperCase()}</div>
-                      }
-                    </div>
-                    <div className="sidebar-comment-body">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span className="sidebar-author-display-name" style={{ fontSize: 13 }}>{reply.author || 'User'}</span>
-                        {reply.author === authorName && <span className="sidebar-op-badge">OP</span>}
-                        <span className="sidebar-reply-to-label">↩ {reply.replyToAuthor}</span>
-                        <span className="sidebar-author-handle-sub" style={{ marginLeft: 'auto' }}>{reply.timestamp}</span>
-                        {typeof onDeleteComment === 'function' && (
-                          <button className="sidebar-comment-delete-btn" onClick={() => onDeleteComment(item.id, reply.id)} title="Delete">✕</button>
-                        )}
-                      </div>
-                      <p className="sidebar-comment-text">{reply.text}</p>
-                      <button
-                        className="sidebar-comment-reply-btn"
-                        onClick={() => setReplyingTo(replyingTo?.commentId === reply.id ? null : { commentId: reply.id, rootCommentId: comment.id, author: reply.author })}
+                  {notifications.length === 0
+                    ? <p className="notif-empty">No notifications yet</p>
+                    : notifications.map(n => (
+                      <div
+                        key={n.id}
+                        className={`notif-item ${n.read ? '' : 'unread'}`}
+                        onClick={() => { if (n.post_id) { setActivePostId(n.post_id); setShowNotifications(false); } }}
                       >
-                        ↩ Reply
-                      </button>
-                    </div>
-                  </motion.div>
-                ))}
-              </React.Fragment>
-            ))}
-          </AnimatePresence>
-        </div>
-      </div>
+                        <span className="notif-icon">
+                          {n.type === 'like' ? '♡' : n.type === 'reply' ? '↩' : '💬'}
+                        </span>
+                        <div className="notif-text">
+                          <strong>{n.actor_name}</strong>
+                          {n.type === 'like' ? ' liked' : n.type === 'reply' ? ' replied to' : ' commented on'}
+                          {' '}your post <em>{n.post_title || 'a post'}</em>
+                          <div className="notif-time">{n.created_at ? new Date(n.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</div>
+                        </div>
+                        {!n.read && <span className="notif-dot" />}
+                      </div>
+                    ))
+                  }
+                </div>
+              )}
+            </div>
 
-      {/* Comment input pinned to bottom */}
-      <div className="sidebar-comment-form-wrapper">
-        {replyingTo && (
-          <div className="sidebar-replying-to-bar">
-            <span>Replying to <strong>{replyingTo.author}</strong></span>
-            <button type="button" onClick={() => setReplyingTo(null)}>✕</button>
+            <button onClick={handleLogout} className="control-btn logout-header-btn">Logout</button>
+          </div>
+        </div>
+      </header>
+
+      {!showCreatePanel && (
+        <div className="search-create-bar">
+          <span className="search-icon-inline">🔍</span>
+          <input className="search-bar-input" placeholder="Search or create a post..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+          <button className="new-post-btn" onClick={() => setShowCreatePanel(true)}>💬 New Post</button>
+        </div>
+      )}
+
+      {showCreatePanel && (
+        <BrainDumpInput
+          onAddItem={handleAddItem} drafts={drafts} onSaveDraft={handleSaveDraft}
+          activeDraft={activeDraft}
+          onClearActiveDraft={() => { setActiveDraft(null); setShowCreatePanel(false); }}
+          currentUser={user} onCancel={() => setShowCreatePanel(false)}
+        />
+      )}
+
+      {/* Sort & View */}
+      <div className="sort-view-pill-wrapper" ref={sortPanelRef}>
+        <button className={`sort-view-pill-btn ${showSortPanel ? 'open' : ''}`} onClick={() => setShowSortPanel(v => !v)}>
+          <span className="sort-view-pill-icon">⇅</span> Sort &amp; View
+          <span className="sort-view-pill-chevron">{showSortPanel ? '︿' : '﹀'}</span>
+        </button>
+        {showSortPanel && (
+          <div className="sort-view-dropdown-panel">
+            <div className="svp-section-label">Sort By</div>
+            {[{ value: 'newest', label: 'Recently Active' }, { value: 'oldest', label: 'Date Posted' }, { value: 'comments', label: 'Most Comments' }].map(opt => (
+              <label key={opt.value} className="svp-radio-row">
+                <span className="svp-radio-label">{opt.label}</span>
+                <input type="radio" name="sortBy" checked={sortBy === opt.value} onChange={() => setSortBy(opt.value)} className="svp-radio-input" />
+                <span className={`svp-radio-circle ${sortBy === opt.value ? 'checked' : ''}`} />
+              </label>
+            ))}
+            <div className="svp-divider" />
+            <div className="svp-section-label">Filter By Tag</div>
+            {[{ value: 'all', label: 'All' }, { value: 'now', label: 'Now' }, { value: 'delegate', label: 'Delegate' }, { value: 'someday', label: 'Someday' }].map(opt => (
+              <label key={opt.value} className="svp-radio-row">
+                <span className="svp-radio-label">{opt.label}</span>
+                <input type="radio" name="filterCategory" checked={filterCategory === opt.value} onChange={() => setFilterCategory(opt.value)} className="svp-radio-input" />
+                <span className={`svp-radio-circle ${filterCategory === opt.value ? 'checked' : ''}`} />
+              </label>
+            ))}
+            <div className="svp-divider" />
+            <div className="svp-section-label">View As</div>
+            {[{ value: 'list', label: 'List' }, { value: 'gallery', label: 'Gallery' }].map(opt => (
+              <label key={opt.value} className="svp-radio-row">
+                <span className="svp-radio-label">{opt.label}</span>
+                <input type="radio" name="viewMode" checked={viewMode === opt.value} onChange={() => setViewMode(opt.value)} className="svp-radio-input" />
+                <span className={`svp-radio-circle ${viewMode === opt.value ? 'checked' : ''}`} />
+              </label>
+            ))}
+            <div className="svp-divider" />
+            <button className="svp-reset-btn" onClick={() => { setSortBy('newest'); setViewMode('list'); setFilterCategory('all'); setShowSortPanel(false); }}>Reset to default</button>
           </div>
         )}
-        <div className="sidebar-comment-form">
-          <div className="sidebar-author-avatar-circle" style={{ width: 32, height: 32, flexShrink: 0 }}>
-            {currentUserAvatar
-              ? <img src={currentUserAvatar} alt={currentUserName} />
-              : <div className="sidebar-avatar-fallback">{currentUserName.charAt(0).toUpperCase()}</div>
-            }
-          </div>
-          <input
-            type="text"
-            className="comment-input-bar"
-            placeholder={replyingTo ? `Reply to ${replyingTo.author}…` : `Reply as ${currentUserName}…`}
-            value={commentText}
-            onChange={e => setCommentText(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handlePostComment()}
-          />
-          <button type="button" className="submit-post-btn" style={{ padding: '6px 14px', fontSize: 13 }} onClick={handlePostComment} disabled={!commentText.trim()}>Post</button>
-        </div>
       </div>
-    </motion.aside>
+
+      <div className={`workspace-layout ${activePost ? 'split-view' : ''}`}>
+        <div className="feed-pane">
+          {itemsLoading
+            ? <p style={{ textAlign: 'center', color: '#aaa', padding: 40 }}>Loading posts…</p>
+            : <ForumFeed
+                items={displayedItems}
+                activePostId={activePostId}
+                onSelectPost={setActivePostId}
+                onMoveItem={handleMoveItem}
+                onDeleteItem={handleDeleteItem}
+                onUpdateItem={handleUpdateItem}
+                onLikeItem={handleLikeItem}
+                viewMode={viewMode}
+                sidebarOpen={!!activePost}
+                currentUserId={userId}
+              />
+          }
+        </div>
+        {activePost && (
+          <PostDetailSidebar
+            item={activePost} onClose={() => setActivePostId(null)}
+            onAddComment={handleAddComment} onDeletePost={handleDeleteItem}
+            onDeleteComment={handleDeleteComment} onUpdateItem={handleUpdateItem}
+            currentUser={user}
+          />
+        )}
+      </div>
+
+      {showDraftsModal && <DraftsManager drafts={drafts} onLoadDraft={handleLoadDraft} onDeleteDraft={handleDeleteDraft} onClose={() => setShowDraftsModal(false)} />}
+      {showProfileModal && <ProfileDashboard user={user} onUpdateUser={handleUpdateUserProfile} onClose={() => setShowProfileModal(false)} />}
+
+      {showBookmarks && (
+        <BookmarksModal
+          items={items.filter(i => userBookmarks[i.id] && !i.archived).map(i => ({ ...i, bookmarked: true }))}
+          onClose={() => setShowBookmarks(false)}
+          onSelect={(id) => { setActivePostId(id); setShowBookmarks(false); }}
+          handleUpdateItem={handleUpdateItem}
+        />
+      )}
+      {showArchive && (
+        <ArchiveModal
+          items={items.filter(i => i.archived)}
+          onClose={() => setShowArchive(false)}
+          onSelect={(id) => { setActivePostId(id); setShowArchive(false); }}
+          onUnarchive={(id) => handleUpdateItem(id, { archived: false })}
+          onDelete={handleDeleteItem}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ── Bookmarks Modal ── */
+function BookmarksModal({ items, onClose, onSelect, handleUpdateItem }) {
+  return (
+    <div className="overlay-modal-backdrop" onClick={onClose}>
+      <div className="overlay-modal-panel" onClick={e => e.stopPropagation()}>
+        <div className="overlay-modal-header">
+          <h2 className="overlay-modal-title">★ Bookmarks</h2>
+          <button className="overlay-modal-close" onClick={onClose}>✕</button>
+        </div>
+        {items.length === 0 ? (
+          <div className="overlay-modal-empty"><p>No bookmarks yet.</p><p style={{ fontSize: 13, color: '#aaa' }}>Star a post with ☆ to save it here.</p></div>
+        ) : (
+          <div className="overlay-modal-list">
+            {items.map(item => {
+              const el = document.createElement('div'); el.innerHTML = item.text || '';
+              const titleEl = el.querySelector('.post-compiled-title');
+              const bodyEl = el.querySelector('.post-compiled-body');
+              const title = titleEl ? titleEl.textContent.trim() : 'Untitled Entry';
+              const preview = bodyEl ? bodyEl.textContent.trim().slice(0, 100) : '';
+              return (
+                <div key={item.id} className="overlay-modal-item" onClick={() => onSelect(item.id)}>
+                  <div className="overlay-modal-item-left">
+                    {item.image && <div className="overlay-modal-thumb"><img src={item.image} alt="" /></div>}
+                    <div className="overlay-modal-item-text">
+                      <p className="overlay-modal-item-title">{title}</p>
+                      {preview && <p className="overlay-modal-item-preview">{preview}…</p>}
+                      <p className="overlay-modal-item-meta">{item.authorName} · {item.timestamp}</p>
+                    </div>
+                  </div>
+                  <button className="overlay-modal-item-action" title="Remove bookmark" onClick={e => { e.stopPropagation(); handleUpdateItem(item.id, { bookmarked: false }); }}>★</button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Archive Modal ── */
+function ArchiveModal({ items, onClose, onSelect, onUnarchive, onDelete }) {
+  return (
+    <div className="overlay-modal-backdrop" onClick={onClose}>
+      <div className="overlay-modal-panel" onClick={e => e.stopPropagation()}>
+        <div className="overlay-modal-header">
+          <h2 className="overlay-modal-title">▼ Archive</h2>
+          <button className="overlay-modal-close" onClick={onClose}>✕</button>
+        </div>
+        {items.length === 0 ? (
+          <div className="overlay-modal-empty"><p>Nothing archived yet.</p></div>
+        ) : (
+          <div className="overlay-modal-list">
+            {items.map(item => {
+              const el = document.createElement('div'); el.innerHTML = item.text || '';
+              const title = (el.querySelector('.post-compiled-title')?.textContent || 'Untitled').trim();
+              const preview = (el.querySelector('.post-compiled-body')?.textContent || '').trim().slice(0, 100);
+              return (
+                <div key={item.id} className="overlay-modal-item" onClick={() => onSelect(item.id)}>
+                  <div className="overlay-modal-item-left">
+                    {item.image && <div className="overlay-modal-thumb"><img src={item.image} alt="" /></div>}
+                    <div className="overlay-modal-item-text">
+                      <p className="overlay-modal-item-title">{title}</p>
+                      {preview && <p className="overlay-modal-item-preview">{preview}…</p>}
+                      <p className="overlay-modal-item-meta">{item.authorName} · {item.timestamp}</p>
+                    </div>
+                  </div>
+                  <div className="overlay-modal-item-actions" onClick={e => e.stopPropagation()}>
+                    <button className="overlay-modal-restore-btn" onClick={() => onUnarchive(item.id)}>▲ Restore</button>
+                    <button className="overlay-modal-delete-btn" onClick={() => { if (window.confirm('Delete permanently?')) onDelete(item.id); }}>✕</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

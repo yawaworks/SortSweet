@@ -46,6 +46,7 @@ export default function App() {
   const userBookmarksRef = useRef(userBookmarks);
   useEffect(() => { userLikesRef.current = userLikes; }, [userLikes]);
   useEffect(() => { userBookmarksRef.current = userBookmarks; }, [userBookmarks]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('newest');
   const [filterCategory, setFilterCategory] = useState('all');
   const [viewMode, setViewMode] = useState('list');

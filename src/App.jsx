@@ -195,6 +195,9 @@ export default function App() {
       }
       setUser(userData);
       localStorage.setItem('sortsweet-user', JSON.stringify(userData));
+      // Always fetch posts after profile is ready
+      fetchPosts(authUser.id);
+      fetchNotifications(authUser.id);
     } catch (err) { console.error(err); }
   };
 
@@ -385,7 +388,7 @@ export default function App() {
     return result;
   }, [items, searchQuery, filterCategory, sortBy]);
 
-  if (!user) return <AuthPage onAuthSuccess={(u) => setUser(u)} />;
+  if (!user) return <AuthPage onAuthSuccess={(u) => { setUser(u); if (u?.id) setUserId(u.id); }} />;
   const activePost = items.find(item => item.id === activePostId);
   const unreadCount = notifications.filter(n => !n.read).length;
   const displayName = user?.nickname || user?.username || 'User';

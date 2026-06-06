@@ -114,11 +114,21 @@ export default function App() {
   useEffect(() => {
     if (!userId) return;
     const channel = supabase
-      .channel('notifications-realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `recipient_id=eq.${userId}` }, (payload) => {
-        setNotifications(prev => [payload.new, ...prev]);
-      })
-      .subscribe();
+      .channel(`notifications-realtime-${userId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `recipient_id=eq.${userId}` },
+        (payload) => {
+          setNotifications(prev => {
+            // Avoid duplicate if fetchNotifications already added it
+            if (prev.find(n => n.id === payload.new.id)) return prev;
+            return [payload.new, ...prev];
+          });
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIPTION_ERROR') console.error('Notification subscription error');
+      });
     return () => supabase.removeChannel(channel);
   }, [userId]);
 
@@ -208,19 +218,19 @@ export default function App() {
     setActivePostId(null);
   };
 
-  // Push a notification row to Supabase (best effort)
+  // Push a notification row to Supabase
   const pushNotification = async (recipientId, type, actorName, postId, postTitle) => {
     if (!recipientId || recipientId === userId) return; // don't notify yourself
-    try {
-      await supabase.from('notifications').insert({
-        recipient_id: recipientId,
-        actor_name: actorName,
-        type, // 'like' | 'comment' | 'reply'
-        post_id: postId,
-        post_title: postTitle,
-        read: false,
-      });
-    } catch (e) { /* silent */ }
+    const { error } = await supabase.from('notifications').insert({
+      recipient_id: recipientId,
+      actor_name: actorName,
+      type, // 'like' | 'comment' | 'reply'
+      post_id: postId,
+      post_title: postTitle,
+      read: false,
+      created_at: new Date().toISOString(),
+    });
+    if (error) console.error('pushNotification error:', error.message, error);
   };
 
   const handleAddItem = async (content, category, imageUrl) => {

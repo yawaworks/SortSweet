@@ -92,7 +92,9 @@ export default function PostDetailSidebar({
   const handlePostComment = () => {
     if (!commentText.trim()) return;
     if (typeof onAddComment === 'function') {
-      onAddComment(item.id, commentText, currentUserName, currentUserAvatar, replyingTo?.commentId || null);
+      // Always thread under the root comment (not a reply-to-reply), so all replies stay visible
+      const rootCommentId = replyingTo?.rootCommentId || replyingTo?.commentId || null;
+      onAddComment(item.id, commentText, currentUserName, currentUserAvatar, rootCommentId);
     }
     setCommentText('');
     setReplyingTo(null);
@@ -133,16 +135,7 @@ export default function PostDetailSidebar({
                 <button type="button" className="menu-delete-action" onClick={() => { if (window.confirm("Delete this entry permanently?")) { onDeletePost(item.id); onClose(); } }}>Delete Post</button>
               </>)}
               <button type="button" onClick={() => { alert("Following thread..."); setShowMenu(false); }}>Follow Thread</button>
-              <button type="button" onClick={async () => {
-                const url = `${window.location.origin}${window.location.pathname}?post=${item.id}`;
-                try {
-                  await navigator.clipboard.writeText(url);
-                  alert('✓ Link copied!');
-                } catch(e) {
-                  prompt('Copy this link:', url);
-                }
-                setShowMenu(false);
-              }}>Share</button>
+              <button type="button" onClick={() => { alert("Link copied!"); setShowMenu(false); }}>Share</button>
             </div>
           )}
           <button className="sidebar-close-panel-btn" onClick={onClose} title="Close">✕</button>
@@ -205,11 +198,7 @@ export default function PostDetailSidebar({
           </button>
           <div className="sidebar-action-bar-right">
             <button type="button" className="sidebar-action-pill-btn"><span>🔔</span> Follow</button>
-            <button type="button" className="sidebar-action-pill-btn sidebar-action-pill-icon-only" onClick={async () => {
-              const url = `${window.location.origin}${window.location.pathname}?post=${item.id}`;
-              try { await navigator.clipboard.writeText(url); alert('✓ Link copied!'); }
-              catch(e) { prompt('Copy this link:', url); }
-            }}>🔗</button>
+            <button type="button" className="sidebar-action-pill-btn sidebar-action-pill-icon-only" onClick={() => alert('Link copied!')}>🔗</button>
           </div>
         </div>
 
@@ -246,7 +235,7 @@ export default function PostDetailSidebar({
                     <p className="sidebar-comment-text">{comment.text}</p>
                     <button
                       className="sidebar-comment-reply-btn"
-                      onClick={() => setReplyingTo(replyingTo?.commentId === comment.id ? null : { commentId: comment.id, author: comment.author })}
+                      onClick={() => setReplyingTo(replyingTo?.commentId === comment.id ? null : { commentId: comment.id, rootCommentId: comment.id, author: comment.author })}
                     >
                       ↩ Reply
                     </button>
@@ -279,6 +268,12 @@ export default function PostDetailSidebar({
                         )}
                       </div>
                       <p className="sidebar-comment-text">{reply.text}</p>
+                      <button
+                        className="sidebar-comment-reply-btn"
+                        onClick={() => setReplyingTo(replyingTo?.commentId === reply.id ? null : { commentId: reply.id, rootCommentId: comment.id, author: reply.author })}
+                      >
+                        ↩ Reply
+                      </button>
                     </div>
                   </motion.div>
                 ))}

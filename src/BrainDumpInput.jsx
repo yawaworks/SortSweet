@@ -60,7 +60,7 @@ export default function BrainDumpInput({ onAddItem, onSaveDraft, activeDraft, on
 
   const triggerSubmitPost = (e) => {
     e.preventDefault();
-    if (!title.trim() && editor.isEmpty) return;
+    if (!title.trim()) { alert('Please enter a title for your post.'); return; }
 
     const htmlContent = editor.getHTML();
     
@@ -71,7 +71,7 @@ export default function BrainDumpInput({ onAddItem, onSaveDraft, activeDraft, on
 
     const finalCompiledPayload = `
       <div class="journal-post-compiled">
-        <h2 class="post-compiled-title">${title.trim() ? title : 'Untitled Entry'}</h2>
+        <h2 class="post-compiled-title">${title.trim()}</h2>
         <div class="post-compiled-body rich-text-display-pane">${htmlContent}</div>
       </div>
     `;
@@ -127,11 +127,12 @@ export default function BrainDumpInput({ onAddItem, onSaveDraft, activeDraft, on
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Title (optional)"
+                placeholder="Title (required)"
                 className="title-field"
-                maxLength={100}
+                maxLength={150}
+                required
               />
-              {title.length > 0 && <span className="title-char-counter">{title.length}/100</span>}
+              <span className={`title-char-counter ${title.length >= 130 ? 'title-char-warn' : ''}`}>{title.length}/150</span>
             </div>
 
             <div className="editor-content">
@@ -246,7 +247,7 @@ export default function BrainDumpInput({ onAddItem, onSaveDraft, activeDraft, on
             <button type="button" className="draft-save-btn" onClick={triggerSaveDraft}>
               Save Draft
             </button>
-            <button type="submit" className="submit-post-btn" disabled={!title.trim() && editor.isEmpty}>
+            <button type="submit" className="submit-post-btn" disabled={!title.trim()}>
               Post
             </button>
           </div>

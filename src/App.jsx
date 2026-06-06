@@ -69,9 +69,26 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // ── Open post from shared URL ──
   useEffect(() => {
-    if (userId) { fetchPosts(userId); fetchNotifications(userId); }
-  }, [userId]);
+    const params = new URLSearchParams(window.location.search);
+    const postId = params.get('post');
+    if (postId) setActivePostId(postId);
+  }, []);
+
+  // When items load, also check URL param (in case items weren't ready yet)
+  useEffect(() => {
+    if (items.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const postId = params.get('post');
+    if (postId && items.find(i => i.id === postId)) {
+      setActivePostId(postId);
+      // Clean URL without reload
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [items]);
+
+
 
   // ── Realtime subscription for comments/likes (so cross-user updates appear) ──
   useEffect(() => {
@@ -269,6 +286,7 @@ export default function App() {
       text: commentText,
       author: authorName,
       authorAvatar: authorAvatar || '',
+      authorUserId: userId,
       timestamp: new Date().toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
       replyTo: replyToId || null,
       replyToAuthor: parentComment?.author || null,
@@ -288,9 +306,9 @@ export default function App() {
       if (post._userId && post._userId !== userId) {
         await pushNotification(post._userId, replyToId ? 'reply' : 'comment', authorName, postId, postTitle);
       }
-      // Also notify parent comment author if replying
-      if (replyToId && parentComment && post._userId !== userId) {
-        // We'd need parent comment author's userId — we store authorName only. Skip for now unless we track userId in comments.
+      // Notify parent comment author if replying to someone other than the post owner and other than self
+      if (replyToId && parentComment?.authorUserId && parentComment.authorUserId !== userId && parentComment.authorUserId !== post._userId) {
+        await pushNotification(parentComment.authorUserId, 'reply', authorName, postId, postTitle);
       }
     } catch (err) { console.error('comment error:', err); }
   };

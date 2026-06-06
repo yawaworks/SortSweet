@@ -168,7 +168,16 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, onLik
     <div className="sidebar-dropdown-menu" style={{ position: 'fixed', top: feedMenuPos.top, right: feedMenuPos.right, zIndex: 999999, display: 'block', background: '#ffffff', boxShadow: '0px 4px 16px rgba(0,0,0,0.12)', borderRadius: '8px', minWidth: '170px', padding: '4px 0', border: '1px solid #f0e6e1' }}>
       {isOwn && <button type="button" style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#2c3e50' }} onClick={() => { onSelect(); setShowFeedMenu(false); }}>Edit Post</button>}
       {isOwn && <button type="button" style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: item.isPublic ? '#ff8b94' : '#2c3e50', fontWeight: item.isPublic ? 600 : 400 }} onClick={() => { onUpdateItem(item.id, { isPublic: !item.isPublic }); setShowFeedMenu(false); }}>{item.isPublic ? '🔒 Make Private' : '🌐 Make Public'}</button>}
-      <button type="button" style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#2c3e50' }} onClick={async () => { try { await navigator.clipboard.writeText(window.location.origin + '/?post=' + item.id); } catch(e) { prompt('Copy this URL:', window.location.origin + '/?post=' + item.id); } setShowFeedMenu(false); }}>🔗 Copy URL</button>
+      <button type="button" style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#2c3e50' }} onClick={async () => {
+        const url = `${window.location.origin}${window.location.pathname}?post=${item.id}`;
+        try {
+          await navigator.clipboard.writeText(url);
+          alert('✓ Link copied to clipboard!');
+        } catch(e) {
+          prompt('Copy this link:', url);
+        }
+        setShowFeedMenu(false);
+      }}>🔗 Copy URL</button>
       {isOwn && <button type="button" style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#2c3e50' }} onClick={() => { if (!canPin || isPinned) onTogglePin && onTogglePin(item.id); setShowFeedMenu(false); }} disabled={canPin && !isPinned}>{isPinned ? "Unpin Post" : "Pin Post"}</button>}
       {isOwn && <button type="button" style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: item.archived ? '#20c997' : '#8e9aa6' }} onClick={() => { onUpdateItem(item.id, { archived: !item.archived }); setShowFeedMenu(false); }}>{item.archived ? '▼ Unarchive' : '▼ Archive'}</button>}
       {isOwn && <div style={{ height: '1px', background: '#f0f0f0', margin: '4px 0' }} />}
@@ -202,7 +211,7 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, onLik
           <button className="control-btn" onClick={e => { e.stopPropagation(); onLikeItem ? onLikeItem(item.id) : onUpdateItem(item.id, { liked: !item.liked }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', padding: 0, color: item.liked ? '#ff8b94' : '#8e9aa6' }}>{item.liked ? "𖹭.ᐟ" : "♡"}</button>
           <button className="control-btn" onClick={e => { e.stopPropagation(); onUpdateItem(item.id, { bookmarked: !item.bookmarked }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', padding: 0, color: item.bookmarked ? '#f5c518' : '#8e9aa6' }}>{item.bookmarked ? "★" : "☆"}</button>
           <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>💬 {item.comments?.length || 0}</span>
-          {item.isPublic && <span style={{ fontSize: '11px', color: '#ff8b94', fontWeight: 600, marginLeft: 'auto' }}>Public</span>}
+          {!item.isPublic && <span style={{ fontSize: '11px', color: '#8e9aa6', fontWeight: 600, marginLeft: 'auto' }}>🔒 Private</span>}
         </div>
       </motion.div>
     );
@@ -254,7 +263,7 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, onLik
             {item.bookmarked ? "★" : "☆"}
           </button>
           <span style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>💬 {item.comments?.length || 0}</span>
-          {item.isPublic && <span style={{ fontSize: '11px', color: '#ff8b94', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '2px' }}>Public</span>}
+          {!item.isPublic && <span style={{ fontSize: '11px', color: '#8e9aa6', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '2px' }}>🔒 Private</span>}
         </div>
       </div>
 

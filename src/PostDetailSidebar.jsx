@@ -133,7 +133,16 @@ export default function PostDetailSidebar({
                 <button type="button" className="menu-delete-action" onClick={() => { if (window.confirm("Delete this entry permanently?")) { onDeletePost(item.id); onClose(); } }}>Delete Post</button>
               </>)}
               <button type="button" onClick={() => { alert("Following thread..."); setShowMenu(false); }}>Follow Thread</button>
-              <button type="button" onClick={() => { alert("Link copied!"); setShowMenu(false); }}>Share</button>
+              <button type="button" onClick={async () => {
+                const url = `${window.location.origin}${window.location.pathname}?post=${item.id}`;
+                try {
+                  await navigator.clipboard.writeText(url);
+                  alert('✓ Link copied!');
+                } catch(e) {
+                  prompt('Copy this link:', url);
+                }
+                setShowMenu(false);
+              }}>Share</button>
             </div>
           )}
           <button className="sidebar-close-panel-btn" onClick={onClose} title="Close">✕</button>
@@ -196,7 +205,11 @@ export default function PostDetailSidebar({
           </button>
           <div className="sidebar-action-bar-right">
             <button type="button" className="sidebar-action-pill-btn"><span>🔔</span> Follow</button>
-            <button type="button" className="sidebar-action-pill-btn sidebar-action-pill-icon-only" onClick={() => alert('Link copied!')}>🔗</button>
+            <button type="button" className="sidebar-action-pill-btn sidebar-action-pill-icon-only" onClick={async () => {
+              const url = `${window.location.origin}${window.location.pathname}?post=${item.id}`;
+              try { await navigator.clipboard.writeText(url); alert('✓ Link copied!'); }
+              catch(e) { prompt('Copy this link:', url); }
+            }}>🔗</button>
           </div>
         </div>
 

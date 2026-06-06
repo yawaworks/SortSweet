@@ -33,7 +33,19 @@ export default function App() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [userLikes, setUserLikes] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('sortsweet-likes') || '{}'); } catch { return {}; }
+  });
+  const [userBookmarks, setUserBookmarks] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('sortsweet-bookmarks') || '{}'); } catch { return {}; }
+  });
+
+  useEffect(() => { localStorage.setItem('sortsweet-likes', JSON.stringify(userLikes)); }, [userLikes]);
+  useEffect(() => { localStorage.setItem('sortsweet-bookmarks', JSON.stringify(userBookmarks)); }, [userBookmarks]);
+  const userLikesRef = useRef(userLikes);
+  const userBookmarksRef = useRef(userBookmarks);
+  useEffect(() => { userLikesRef.current = userLikes; }, [userLikes]);
+  useEffect(() => { userBookmarksRef.current = userBookmarks; }, [userBookmarks]);
   const [sortBy, setSortBy] = useState('newest');
   const [filterCategory, setFilterCategory] = useState('all');
   const [viewMode, setViewMode] = useState('list');
@@ -103,7 +115,20 @@ export default function App() {
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, (payload) => {
         if (payload.new.user_id !== userId && payload.new.is_public) {
-          setItems(prev => [rowToItem(payload.new), ...prev]);
+          const row = payload.new;
+          const newItem = {
+            id: row.id, text: row.text, category: row.category,
+            image: row.image_url || null,
+            authorName: row.author_name, authorAvatar: row.author_avatar || '',
+            timestamp: row.created_at ? new Date(row.created_at).toLocaleString([], { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '',
+            createdAt: row.created_at ? new Date(row.created_at).getTime() : 0,
+            comments: row.comments || [], isPublic: row.is_public || false,
+            archived: row.archived || false,
+            liked: !!(userLikesRef.current[row.id]),
+            bookmarked: !!(userBookmarksRef.current[row.id]),
+            _userId: row.user_id,
+          };
+          setItems(prev => [newItem, ...prev]);
         }
       })
       .subscribe();
@@ -157,7 +182,20 @@ export default function App() {
       const seen = new Set();
       const deduped = combined.filter(row => { if (seen.has(row.id)) return false; seen.add(row.id); return true; });
       deduped.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-      setItems(deduped.map(rowToItem));
+      const likes = userLikesRef.current;
+      const bookmarks = userBookmarksRef.current;
+      setItems(deduped.map(row => ({
+        id: row.id, text: row.text, category: row.category,
+        image: row.image_url || null,
+        authorName: row.author_name, authorAvatar: row.author_avatar || '',
+        timestamp: row.created_at ? new Date(row.created_at).toLocaleString([], { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '',
+        createdAt: row.created_at ? new Date(row.created_at).getTime() : 0,
+        comments: row.comments || [], isPublic: row.is_public || false,
+        archived: row.archived || false,
+        liked: !!(likes[row.id]),
+        bookmarked: !!(bookmarks[row.id]),
+        _userId: row.user_id,
+      })));
     } catch (err) { console.error('fetchPosts error:', err); }
     finally { setItemsLoading(false); }
   };
@@ -169,7 +207,9 @@ export default function App() {
     timestamp: row.created_at ? new Date(row.created_at).toLocaleString([], { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '',
     createdAt: row.created_at ? new Date(row.created_at).getTime() : 0,
     comments: row.comments || [], isPublic: row.is_public || false,
-    archived: row.archived || false, liked: row.liked || false, bookmarked: row.bookmarked || false,
+    archived: row.archived || false,
+    liked: !!(userLikes[row.id]),
+    bookmarked: !!(userBookmarks[row.id]),
     _userId: row.user_id,
   });
 
@@ -177,7 +217,8 @@ export default function App() {
     text: row.text, category: row.category, image: row.image_url || null,
     authorName: row.author_name, authorAvatar: row.author_avatar || '',
     comments: row.comments || [], isPublic: row.is_public || false,
-    archived: row.archived || false, liked: row.liked || false, bookmarked: row.bookmarked || false,
+    archived: row.archived || false,
+    // do NOT overwrite liked/bookmarked — those are per-user local state
   });
 
   const fetchOrCreateProfile = async (authUser) => {
@@ -260,6 +301,15 @@ export default function App() {
   };
 
   const handleUpdateItem = async (id, updatedFields) => {
+    // Handle bookmarks locally (per-user), not on the shared post row
+    if ('bookmarked' in updatedFields) {
+      setUserBookmarks(prev => {
+        const next = { ...prev };
+        if (updatedFields.bookmarked) next[id] = true;
+        else delete next[id];
+        return next;
+      });
+    }
     setItems(prev => prev.map(item => item.id === id ? { ...item, ...updatedFields } : item));
     try {
       const dbFields = {};
@@ -341,10 +391,10 @@ export default function App() {
   const handleLikeItem = async (id) => {
     const post = items.find(i => i.id === id);
     if (!post) return;
-    const newLiked = !post.liked;
+    const newLiked = !userLikes[id];
+    setUserLikes(prev => { const next = { ...prev }; if (newLiked) next[id] = true; else delete next[id]; return next; });
     setItems(prev => prev.map(item => item.id === id ? { ...item, liked: newLiked } : item));
     try {
-      await supabase.from('posts').update({ liked: newLiked }).eq('id', id);
       if (newLiked && post._userId && post._userId !== userId) {
         const el = document.createElement('div'); el.innerHTML = post.text || '';
         const titleEl = el.querySelector('.post-compiled-title');
@@ -382,7 +432,9 @@ export default function App() {
   };
 
   const displayedItems = useMemo(() => {
-    let result = items.filter(i => !i.archived);
+    let result = items
+      .filter(i => !i.archived)
+      .map(i => ({ ...i, liked: !!(userLikes[i.id]), bookmarked: !!(userBookmarks[i.id]) }));
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(item => {
@@ -396,9 +448,9 @@ export default function App() {
     else if (sortBy === 'category') result.sort((a, b) => (a.category || '').localeCompare(b.category || ''));
     else if (sortBy === 'comments') result.sort((a, b) => (b.comments?.length || 0) - (a.comments?.length || 0));
     return result;
-  }, [items, searchQuery, filterCategory, sortBy]);
+  }, [items, searchQuery, filterCategory, sortBy, userLikes, userBookmarks]);
 
-  if (!user) return <AuthPage onAuthSuccess={(u) => { setUser(u); if (u?.id) setUserId(u.id); }} />;
+  if (!user) return <AuthPage onAuthSuccess={(u) => { if (u?.id) { setUserId(u.id); fetchOrCreateProfile(u); } }} />;
   const activePost = items.find(item => item.id === activePostId);
   const unreadCount = notifications.filter(n => !n.read).length;
   const displayName = user?.nickname || user?.username || 'User';
@@ -557,7 +609,7 @@ export default function App() {
 
       {showBookmarks && (
         <BookmarksModal
-          items={items.filter(i => i.bookmarked && !i.archived)}
+          items={items.filter(i => userBookmarks[i.id] && !i.archived).map(i => ({ ...i, bookmarked: true }))}
           onClose={() => setShowBookmarks(false)}
           onSelect={(id) => { setActivePostId(id); setShowBookmarks(false); }}
           handleUpdateItem={handleUpdateItem}

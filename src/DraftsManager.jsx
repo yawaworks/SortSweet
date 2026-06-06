@@ -17,7 +17,9 @@ export default function DraftsManager({ drafts, onLoadDraft, onDeleteDraft, onCl
               <div key={draft.id} className="draft-item-row">
                 <div className="draft-item-info">
                   <h4>{draft.title || <span className="untitled-text">(Untitled Thoughts)</span>}</h4>
-                  <p>{draft.body ? draft.body.slice(0, 60) + '...' : 'No body text...'}</p>
+                  <p>{draft.bodyHtml
+                    ? (() => { const el = document.createElement('div'); el.innerHTML = draft.bodyHtml; return (el.textContent || '').slice(0, 60) + '...'; })()
+                    : 'No body text...'}</p>
                   <span className="draft-timestamp">Saved: {draft.savedAt}</span>
                 </div>
                 <div className="draft-item-actions">

@@ -18,7 +18,7 @@ export default function PostDetailSidebar({
 
   const currentUserName = currentUser?.nickname || currentUser?.username || currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User';
   const currentUserAvatar = currentUser?.avatar || currentUser?.avatarUrl || null;
-  const isOp = !item.authorName || item.authorName === currentUserName || item.authorName === (currentUser?.username);
+  const isOp = item._userId ? (item._userId === currentUser?.id) : (item.authorName === currentUserName);
 
   useEffect(() => {
     if (item) {
@@ -83,8 +83,15 @@ export default function PostDetailSidebar({
   }, [item.id, item.timestamp]);
 
   const handleSaveEdit = () => {
-    if (!editTitle.trim() && !editBody.trim()) return;
-    const rebuilt = `<div class="journal-post-compiled"><h2 class="post-compiled-title">${editTitle.trim() || 'Untitled Entry'}</h2><div class="post-compiled-body rich-text-display-pane"><p>${editBody.trim()}</p></div></div>`;
+    if (!editTitle.trim()) return;
+    // Preserve existing body HTML; only rebuild if user explicitly edited the plain-text body
+    const existingBodyHtml = getBodyHtmlContent(item.text);
+    const existingBodyText = (() => { const el = document.createElement('div'); el.innerHTML = existingBodyHtml; return (el.textContent || '').trim(); })();
+    const bodyHtml = editBody.trim() !== existingBodyText
+      ? `<p>${editBody.trim().replace(/\n/g, '</p><p>')}</p>`
+      : existingBodyHtml;
+    const escapedTitle = editTitle.trim().replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const rebuilt = `<div class="journal-post-compiled"><h2 class="post-compiled-title">${escapedTitle}</h2><div class="post-compiled-body rich-text-display-pane">${bodyHtml}</div></div>`;
     onUpdateItem(item.id, { text: rebuilt });
     setIsEditing(false);
   };
@@ -135,7 +142,7 @@ export default function PostDetailSidebar({
                 <button type="button" className="menu-delete-action" onClick={() => { if (window.confirm("Delete this entry permanently?")) { onDeletePost(item.id); onClose(); } }}>Delete Post</button>
               </>)}
               <button type="button" onClick={() => { alert("Following thread..."); setShowMenu(false); }}>Follow Thread</button>
-              <button type="button" onClick={() => { alert("Link copied!"); setShowMenu(false); }}>Share</button>
+              <button type="button" onClick={() => { try { navigator.clipboard.writeText(window.location.origin + '/?post=' + item.id); } catch(e) { prompt('Copy this URL:', window.location.origin + '/?post=' + item.id); } setShowMenu(false); }}>Share</button>
             </div>
           )}
           <button className="sidebar-close-panel-btn" onClick={onClose} title="Close">✕</button>

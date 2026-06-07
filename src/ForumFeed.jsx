@@ -49,11 +49,10 @@ function AuthorHoverCard({ authorName, items }) {
         if (cancelled) return;
         if (prof) {
           setProfile(prof);
-          // Always count entries visible to the viewer (public posts by this author)
           const authorPosts = items.filter(i => i.authorName === authorName && !i.archived);
           setEntryCount(authorPosts.length);
           if (prof.is_public) {
-            setRecentPosts(authorPosts.filter(i => i.isPublic).slice(0, 3));
+            setRecentPosts(authorPosts.slice(0, 3));
           }
         }
       } catch (e) { /* silent */ }
@@ -78,30 +77,57 @@ function AuthorHoverCard({ authorName, items }) {
             : <div className="hover-profile-avatar-fallback">{displayName.charAt(0).toUpperCase()}</div>
           }
         </div>
-        <div>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div className="hover-profile-name">{displayName}</div>
           <div className="hover-profile-handle">@{profile.username}</div>
         </div>
-        {isPrivate && <span className="hover-profile-private-badge">🔒 Private</span>}
       </div>
+
       {profile.bio && <p className="hover-profile-bio">{profile.bio}</p>}
 
+      <div className="hover-profile-divider" />
+
       {isPrivate ? (
-        <p className="hover-profile-private-msg">This account is private.</p>
+        <div className="hover-profile-private-state">
+          <div className="hover-profile-lock-icon">🔒</div>
+          <p className="hover-profile-private-title">This account is private</p>
+          <p className="hover-profile-private-sub">Only approved followers can see their entries.</p>
+        </div>
       ) : (
         <>
           <div className="hover-profile-entry-count">
             {entryCount} {entryCount === 1 ? 'entry' : 'entries'}
           </div>
+
           {recentPosts.length > 0 && (
-            <div className="hover-profile-posts">
+            <>
               <p className="hover-profile-posts-label">Recent entries</p>
-              {recentPosts.map(p => {
-                const el = document.createElement('div'); el.innerHTML = p.text || '';
-                const title = el.querySelector('.post-compiled-title')?.textContent?.trim() || 'Untitled';
-                return <div key={p.id} className="hover-profile-post-item">{title}</div>;
-              })}
-            </div>
+              <div className="hover-profile-thumb-grid">
+                {recentPosts.map(p => {
+                  const el = document.createElement('div'); el.innerHTML = p.text || '';
+                  const title = el.querySelector('.post-compiled-title')?.textContent?.trim() || 'Untitled';
+                  return (
+                    <div key={p.id} className="hover-profile-thumb-cell">
+                      {p.image
+                        ? <img src={p.image} alt={title} className="hover-profile-thumb-img" />
+                        : (
+                          <div className="hover-profile-thumb-placeholder">
+                            <span className="hover-profile-thumb-title">{title}</span>
+                          </div>
+                        )
+                      }
+                    </div>
+                  );
+                })}
+                {Array.from({ length: 3 - recentPosts.length }).map((_, i) => (
+                  <div key={`empty-${i}`} className="hover-profile-thumb-cell hover-profile-thumb-empty" />
+                ))}
+              </div>
+            </>
+          )}
+
+          {recentPosts.length === 0 && (
+            <p className="hover-profile-private-msg">No public entries yet.</p>
           )}
         </>
       )}
@@ -168,11 +194,15 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, onLik
   }, [showFeedMenu]);
 
   const handleAuthorMouseEnter = () => {
+    clearTimeout(hoverTimer.current);
     hoverTimer.current = setTimeout(() => setShowHoverCard(true), 400);
   };
-  const handleAuthorMouseLeave = () => {
+  const handleAuthorMouseLeave = (e) => {
+    // Only hide if we're not moving into the hover card itself
+    const related = e.relatedTarget;
+    if (related && e.currentTarget.contains(related)) return;
     clearTimeout(hoverTimer.current);
-    setShowHoverCard(false);
+    hoverTimer.current = setTimeout(() => setShowHoverCard(false), 120);
   };
 
   const softSpringTransition = { type: "spring", duration: 0.35, bounce: 0.1 };

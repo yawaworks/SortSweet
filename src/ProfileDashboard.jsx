@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { supabase } from './supabaseClient';
 import './JournalEditor.css';
 
-export default function ProfileDashboard({ user, onUpdateUser, onClose }) {
+export default function ProfileDashboard({ user, onUpdateUser, onClose, inline = false }) {
   const [nickname, setNickname] = useState(user?.nickname || user?.username || '');
   const [username, setUsername] = useState(user?.username || '');
   const [bio, setBio] = useState(user?.bio || '');
@@ -97,9 +97,8 @@ export default function ProfileDashboard({ user, onUpdateUser, onClose }) {
     }
   };
 
-  return (
-    <div className="profile-dashboard-overlay">
-      <div className="profile-dashboard-card">
+  const content = (
+    <div className={inline ? "profile-dashboard-card profile-dashboard-card--inline" : "profile-dashboard-card"}>
         <div className="profile-dashboard-header">
           <h2>Edit profile</h2>
           <p className="profile-subtitle-caption">Keep your personal details private. Information you add here is visible to anyone who can view your profile.</p>
@@ -181,6 +180,13 @@ export default function ProfileDashboard({ user, onUpdateUser, onClose }) {
           </div>
         </form>
       </div>
+  );
+
+  if (inline) return content;
+
+  return (
+    <div className="profile-dashboard-overlay">
+      {content}
     </div>
   );
 }

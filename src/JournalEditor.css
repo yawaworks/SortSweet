@@ -1378,3 +1378,43 @@
   text-overflow: ellipsis;
 }
 .hover-profile-post-item:last-child { border-bottom: none; }
+/* ── ProfileDashboard inline mode (inside left nav) ── */
+.profile-dashboard-card--inline {
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 4px;
+  font-size: 13px;
+}
+
+.profile-dashboard-card--inline .profile-dashboard-header h2 {
+  font-size: 20px;
+  margin-bottom: 6px;
+}
+
+.profile-dashboard-card--inline .profile-subtitle-caption {
+  font-size: 12px;
+}
+
+.profile-dashboard-card--inline .profile-dashboard-header {
+  margin-bottom: 16px;
+}
+
+.profile-dashboard-card--inline .profile-avatar-large-preview {
+  width: 60px;
+  height: 60px;
+}
+
+.profile-dashboard-card--inline .profile-form-group label {
+  font-size: 12px;
+}
+
+.profile-dashboard-card--inline .profile-form-group input,
+.profile-dashboard-card--inline .profile-form-group textarea {
+  font-size: 13px;
+  padding: 7px 10px;
+}
+
+.profile-dashboard-card--inline .profile-dashboard-footer {
+  padding-top: 12px;
+  margin-top: 8px;
+}

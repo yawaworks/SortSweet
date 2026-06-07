@@ -1980,31 +1980,90 @@ body {
   text-align: center;
 }
 
+.hover-profile-divider {
+  height: 1px;
+  background: var(--border-light);
+  margin: 10px 0;
+}
+
 .hover-profile-posts-label {
   font-size: 11px;
   font-weight: 700;
   color: var(--accent-pink);
   text-transform: uppercase;
-  letter-spacing: 0.4px;
-  margin: 0 0 6px;
+  letter-spacing: 0.5px;
+  margin: 0 0 8px;
 }
 
-.hover-profile-posts {
-  margin-top: 4px;
+.hover-profile-thumb-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
 }
 
-.hover-profile-post-item {
-  font-size: 12px;
-  color: var(--text-primary);
-  padding: 4px 0;
-  border-bottom: 1px solid var(--border-light);
-  white-space: nowrap;
+.hover-profile-thumb-cell {
+  aspect-ratio: 1 / 1;
+  border-radius: 6px;
   overflow: hidden;
-  text-overflow: ellipsis;
+  background: #f5f5f5;
 }
 
-.hover-profile-post-item:last-child {
-  border-bottom: none;
+.hover-profile-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.hover-profile-thumb-placeholder {
+  width: 100%;
+  height: 100%;
+  background: #fdf0f1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  box-sizing: border-box;
+}
+
+.hover-profile-thumb-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: #ff8b94;
+  text-align: center;
+  line-height: 1.3;
+  max-height: 3.9em;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.hover-profile-thumb-empty {
+  background: #f9f9f9;
+  border: 1px dashed #e8e8e8;
+}
+
+.hover-profile-private-state {
+  text-align: center;
+  padding: 8px 0 4px;
+}
+
+.hover-profile-lock-icon {
+  font-size: 22px;
+  margin-bottom: 6px;
+}
+
+.hover-profile-private-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+}
+
+.hover-profile-private-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.4;
 }
 
 /* ── Notification dot & badge ── */

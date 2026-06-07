@@ -96,6 +96,7 @@ export default function App() {
     const postId = params.get('post');
     if (postId && items.find(i => i.id === postId)) {
       setActivePostId(postId);
+      fetchComments(postId);
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, [items]);
@@ -145,6 +146,41 @@ export default function App() {
           });
         }
       )
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [userId]);
+
+  // ── Realtime: comments ──
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabase
+      .channel('comments-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments' }, (payload) => {
+        const r = payload.new;
+        // Skip own inserts — already handled optimistically
+        if (r.author_user_id === userIdRef.current) return;
+        const incoming = {
+          id: r.id, text: r.text,
+          author: r.author, authorAvatar: r.author_avatar || '',
+          authorUserId: r.author_user_id,
+          timestamp: new Date(r.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+          replyTo: r.reply_to || null,
+          replyToAuthor: r.reply_to_author || null,
+        };
+        setItems(prev => prev.map(item => {
+          if (item.id !== r.post_id) return item;
+          if (item.comments?.find(c => c.id === r.id)) return item; // dedupe
+          return { ...item, comments: [...(item.comments || []), incoming] };
+        }));
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'comments' }, (payload) => {
+        const { id, post_id } = payload.old;
+        setItems(prev => prev.map(item =>
+          item.id === post_id
+            ? { ...item, comments: (item.comments || []).filter(c => c.id !== id && c.replyTo !== id) }
+            : item
+        ));
+      })
       .subscribe();
     return () => supabase.removeChannel(channel);
   }, [userId]);
@@ -342,25 +378,78 @@ export default function App() {
 
   const handleMoveItem = (id, newCategory) => handleUpdateItem(id, { category: newCategory });
 
-  // ── Comments — NO user_id filter so any user's comments update correctly ──
+  // ── Comments — now use the dedicated comments table ──
+  const fetchComments = useCallback(async (postId) => {
+    try {
+      const { data, error } = await supabase
+        .from('comments')
+        .select('*')
+        .eq('post_id', postId)
+        .order('created_at', { ascending: true });
+      if (error) { console.error('fetchComments error:', error); return; }
+      const mapped = (data || []).map(r => ({
+        id: r.id,
+        text: r.text,
+        author: r.author,
+        authorAvatar: r.author_avatar || '',
+        authorUserId: r.author_user_id,
+        timestamp: new Date(r.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        replyTo: r.reply_to || null,
+        replyToAuthor: r.reply_to_author || null,
+      }));
+      setItems(prev => prev.map(item => item.id === postId ? { ...item, comments: mapped } : item));
+    } catch (err) { console.error('fetchComments error:', err); }
+  }, []);
+
+  const handleSelectPost = useCallback((postId) => {
+    setActivePostId(postId);
+    if (postId) fetchComments(postId);
+  }, [fetchComments]);
+
   const handleAddComment = async (postId, commentText, authorName, authorAvatar, replyToId = null) => {
     const post = items.find(i => i.id === postId);
     if (!post) return;
     const parentComment = replyToId ? (post.comments || []).find(c => c.id === replyToId) : null;
-    const newComment = {
-      id: crypto.randomUUID(), text: commentText,
+
+    // Optimistic update
+    const tempId = crypto.randomUUID();
+    const optimistic = {
+      id: tempId, text: commentText,
       author: authorName, authorAvatar: authorAvatar || '',
       authorUserId: userIdRef.current,
       timestamp: new Date().toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
       replyTo: replyToId || null,
       replyToAuthor: parentComment?.author || null,
     };
-    const updatedComments = [...(post.comments || []), newComment];
-    setItems(prev => prev.map(item => item.id === postId ? { ...item, comments: updatedComments } : item));
+    setItems(prev => prev.map(item =>
+      item.id === postId ? { ...item, comments: [...(item.comments || []), optimistic] } : item
+    ));
+
     try {
-      // No .eq('user_id', userId) — anyone can comment on public posts
-      const { error } = await supabase.from('posts').update({ comments: updatedComments }).eq('id', postId);
+      const { data, error } = await supabase.from('comments').insert({
+        post_id: postId,
+        author: authorName,
+        author_avatar: authorAvatar || '',
+        author_user_id: userIdRef.current,
+        text: commentText,
+        reply_to: replyToId || null,
+        reply_to_author: parentComment?.author || null,
+      }).select().single();
       if (error) throw error;
+
+      // Replace temp with real DB row
+      setItems(prev => prev.map(item => {
+        if (item.id !== postId) return item;
+        return {
+          ...item,
+          comments: item.comments.map(c => c.id === tempId ? {
+            ...optimistic,
+            id: data.id,
+            timestamp: new Date(data.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+          } : c),
+        };
+      }));
+
       const el = document.createElement('div'); el.innerHTML = post.text || '';
       const postTitle = el.querySelector('.post-compiled-title')?.textContent?.trim() || 'a post';
       if (post._userId && post._userId !== userIdRef.current) {
@@ -369,18 +458,29 @@ export default function App() {
       if (replyToId && parentComment?.authorUserId && parentComment.authorUserId !== userIdRef.current && parentComment.authorUserId !== post._userId) {
         await pushNotification(parentComment.authorUserId, 'reply', authorName, postId, postTitle);
       }
-    } catch (err) { console.error('comment error:', err); }
+    } catch (err) {
+      console.error('comment error:', err);
+      // Roll back optimistic update on failure
+      setItems(prev => prev.map(item =>
+        item.id === postId ? { ...item, comments: (item.comments || []).filter(c => c.id !== tempId) } : item
+      ));
+    }
   };
 
   const handleDeleteComment = async (postId, commentId) => {
-    const post = items.find(i => i.id === postId);
-    if (!post) return;
-    const updatedComments = (post.comments || []).filter(c => c.id !== commentId && c.replyTo !== commentId);
-    setItems(prev => prev.map(item => item.id === postId ? { ...item, comments: updatedComments } : item));
+    // Optimistic: remove comment and its replies
+    setItems(prev => prev.map(item =>
+      item.id === postId
+        ? { ...item, comments: (item.comments || []).filter(c => c.id !== commentId && c.replyTo !== commentId) }
+        : item
+    ));
     try {
-      const { error } = await supabase.from('posts').update({ comments: updatedComments }).eq('id', postId);
+      const { error } = await supabase.from('comments').delete().eq('id', commentId);
       if (error) throw error;
-    } catch (err) { console.error('deleteComment error:', err); }
+    } catch (err) {
+      console.error('deleteComment error:', err);
+      fetchComments(postId); // restore correct state on failure
+    }
   };
 
   // ── Like — Supabase user_interactions ──
@@ -541,7 +641,7 @@ export default function App() {
               ? <p className="left-nav-inline-empty">No notifications yet</p>
               : notifications.map(n => (
                 <div key={n.id} className={`left-nav-notif-item ${n.read ? '' : 'unread'}`}
-                  onClick={() => { if (n.post_id) { setActivePostId(n.post_id); setLeftNavOpen(false); } }}>
+                  onClick={() => { if (n.post_id) { handleSelectPost(n.post_id); setLeftNavOpen(false); } }}>
                   <span className="notif-icon">{n.type === 'like' ? '♡' : n.type === 'reply' ? '↩' : '💬'}</span>
                   <div className="notif-text">
                     <strong>{n.actor_name}</strong>
@@ -583,7 +683,7 @@ export default function App() {
                 const el = document.createElement('div'); el.innerHTML = item.text || '';
                 const title = el.querySelector('.post-compiled-title')?.textContent?.trim() || 'Untitled Entry';
                 return (
-                  <div key={item.id} className="left-nav-list-item" onClick={() => { setActivePostId(item.id); setLeftNavOpen(false); }}>
+                  <div key={item.id} className="left-nav-list-item" onClick={() => { handleSelectPost(item.id); setLeftNavOpen(false); }}>
                     {item.image && <img src={item.image} className="left-nav-list-thumb" alt="" />}
                     <div className="left-nav-list-text">
                       <div className="left-nav-list-title">{title}</div>
@@ -606,7 +706,7 @@ export default function App() {
                 const el = document.createElement('div'); el.innerHTML = item.text || '';
                 const title = el.querySelector('.post-compiled-title')?.textContent?.trim() || 'Untitled';
                 return (
-                  <div key={item.id} className="left-nav-list-item" onClick={() => { setActivePostId(item.id); setLeftNavOpen(false); }}>
+                  <div key={item.id} className="left-nav-list-item" onClick={() => { handleSelectPost(item.id); setLeftNavOpen(false); }}>
                     <div className="left-nav-list-text">
                       <div className="left-nav-list-title">{title}</div>
                       <div className="left-nav-list-meta">{item.authorName}</div>
@@ -721,7 +821,7 @@ export default function App() {
                 : <ForumFeed
                     items={displayedItems}
                     activePostId={activePostId}
-                    onSelectPost={setActivePostId}
+                    onSelectPost={handleSelectPost}
                     onMoveItem={handleMoveItem}
                     onDeleteItem={handleDeleteItem}
                     onUpdateItem={handleUpdateItem}

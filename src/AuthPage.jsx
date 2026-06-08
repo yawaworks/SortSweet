@@ -134,21 +134,21 @@ export default function AuthPage({ onAuthSuccess }) {
     }
   };
 
-  const inputStyle = { width: '100%', padding: '0.85rem', border: '1px solid #f5ebe6', borderRadius: '8px', background: '#faf8f5', color: '#4a3e3d', outline: 'none', fontSize: '1rem', boxSizing: 'border-box' };
-  const labelStyle = { display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#4a3e3d', marginBottom: '0.4rem' };
+  const inputStyle = { width: '100%', padding: '0.85rem', border: '1px solid #E0D9D4', borderRadius: '8px', background: '#F5F2EE', color: '#3E4342', outline: 'none', fontSize: '1rem', boxSizing: 'border-box' };
+  const labelStyle = { display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#3E4342', marginBottom: '0.4rem' };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#faf8f5', fontFamily: 'system-ui' }}>
-      <div style={{ background: 'white', padding: '2.5rem', borderRadius: '16px', boxShadow: '0 8px 24px rgba(74,62,61,0.05)', width: '100%', maxWidth: '420px', textAlign: 'center', border: '1px solid #f5ebe6' }}>
-        <h2 style={{ color: '#4a3e3d', marginBottom: '0.5rem', fontSize: '1.75rem', fontWeight: 800 }}>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#F5F2EE', fontFamily: 'system-ui' }}>
+      <div style={{ background: 'white', padding: '2.5rem', borderRadius: '16px', boxShadow: '0 8px 24px rgba(74,62,61,0.05)', width: '100%', maxWidth: '420px', textAlign: 'center', border: '1px solid #E0D9D4' }}>
+        <h2 style={{ color: '#3E4342', marginBottom: '0.5rem', fontSize: '1.75rem', fontWeight: 800 }}>
           {view === 'login' ? 'Welcome Back' : view === 'register' ? 'Create Space' : view === 'forgot' ? 'Recover Account' : 'New Password'}
         </h2>
-        <p style={{ color: '#8c7e7d', marginBottom: '2rem', fontSize: '0.95rem' }}>
+        <p style={{ color: '#767970', marginBottom: '2rem', fontSize: '0.95rem' }}>
           {view === 'login' ? 'Step into your stream of thought' : view === 'register' ? 'Begin mapping out your day-to-day dump' : view === 'forgot' ? 'Enter your email to receive a reset token' : 'Set a strong password for your profile'}
         </p>
 
-        {error && <div style={{ background: '#fff5f5', color: '#ff8b94', padding: '0.75rem', borderRadius: '8px', marginBottom: '1.5rem', fontSize: '0.9rem', textAlign: 'left', border: '1px solid #ffe3e3', fontWeight: 500 }}>{error}</div>}
-        {message && <div style={{ background: '#eaf5ed', color: '#6d9478', padding: '0.75rem', borderRadius: '8px', marginBottom: '1.5rem', fontSize: '0.9rem', textAlign: 'left', border: '1px solid #d1ebd9', fontWeight: 500 }}>{message}</div>}
+        {error && <div style={{ background: '#EDEAE5', color: '#ADAE8B', padding: '0.75rem', borderRadius: '8px', marginBottom: '1.5rem', fontSize: '0.9rem', textAlign: 'left', border: '1px solid #E0D9D4', fontWeight: 500 }}>{error}</div>}
+        {message && <div style={{ background: '#EDEAE5', color: '#848571', padding: '0.75rem', borderRadius: '8px', marginBottom: '1.5rem', fontSize: '0.9rem', textAlign: 'left', border: '1px solid #E0D9D4', fontWeight: 500 }}>{message}</div>}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
           {view !== 'reset-password' && (
@@ -180,9 +180,9 @@ export default function AuthPage({ onAuthSuccess }) {
                     {checkingUsername ? '⏳' : usernameAvailable === true ? '✅' : usernameAvailable === false ? '❌' : ''}
                   </span>
                 </div>
-                {username.length > 0 && username.length < 3 && <p style={{ fontSize: '0.75rem', color: '#ff8b94', margin: '4px 0 0', textAlign: 'left' }}>At least 3 characters required</p>}
-                {usernameAvailable === false && <p style={{ fontSize: '0.75rem', color: '#ff8b94', margin: '4px 0 0', textAlign: 'left' }}>Username taken</p>}
-                {usernameAvailable === true && <p style={{ fontSize: '0.75rem', color: '#6d9478', margin: '4px 0 0', textAlign: 'left' }}>Username available!</p>}
+                {username.length > 0 && username.length < 3 && <p style={{ fontSize: '0.75rem', color: '#ADAE8B', margin: '4px 0 0', textAlign: 'left' }}>At least 3 characters required</p>}
+                {usernameAvailable === false && <p style={{ fontSize: '0.75rem', color: '#ADAE8B', margin: '4px 0 0', textAlign: 'left' }}>Username taken</p>}
+                {usernameAvailable === true && <p style={{ fontSize: '0.75rem', color: '#848571', margin: '4px 0 0', textAlign: 'left' }}>Username available!</p>}
               </div>
             </>
           )}
@@ -190,9 +190,9 @@ export default function AuthPage({ onAuthSuccess }) {
           {view !== 'forgot' && (
             <div style={{ textAlign: 'left' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#4a3e3d' }}>Password</label>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#3E4342' }}>Password</label>
                 {view === 'login' && (
-                  <button type="button" onClick={() => handleViewChange('forgot')} style={{ background: 'none', border: 'none', color: '#ff9aa2', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600, padding: 0 }}>Forgot?</button>
+                  <button type="button" onClick={() => handleViewChange('forgot')} style={{ background: 'none', border: 'none', color: '#ADAE8B', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600, padding: 0 }}>Forgot?</button>
                 )}
               </div>
               <input type="password" value={password} onChange={e => setPassword(e.target.value)} required style={inputStyle} placeholder="••••••••" />
@@ -205,15 +205,15 @@ export default function AuthPage({ onAuthSuccess }) {
             </div>
           )}
 
-          <button type="submit" disabled={loading} style={{ width: '100%', padding: '1rem', background: '#ff9aa2', color: 'white', border: 'none', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 700, cursor: 'pointer', marginTop: '0.5rem', transition: 'background 0.2s' }}>
+          <button type="submit" disabled={loading} style={{ width: '100%', padding: '1rem', background: '#ADAE8B', color: '#F5F2EE', border: 'none', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 700, cursor: 'pointer', marginTop: '0.5rem', transition: 'background 0.2s' }}>
             {loading ? 'Processing...' : view === 'login' ? 'Log In' : view === 'register' ? 'Register Account' : view === 'forgot' ? 'Send Recovery Link' : 'Update Password'}
           </button>
         </form>
 
-        <div style={{ marginTop: '2rem', fontSize: '0.9rem', color: '#8c7e7c' }}>
-          {view === 'login' && (<>Don't have an account? <button onClick={() => handleViewChange('register')} style={{ background: 'none', border: 'none', color: '#ff9aa2', fontWeight: 700, cursor: 'pointer', padding: 0 }}>Register here</button></>)}
-          {view === 'register' && (<>Already initialized? <button onClick={() => handleViewChange('login')} style={{ background: 'none', border: 'none', color: '#ff9aa2', fontWeight: 700, cursor: 'pointer', padding: 0 }}>Log In</button></>)}
-          {view === 'forgot' && (<button onClick={() => handleViewChange('login')} style={{ background: 'none', border: 'none', color: '#ff9aa2', fontWeight: 700, cursor: 'pointer', padding: 0 }}>Back to Log In</button>)}
+        <div style={{ marginTop: '2rem', fontSize: '0.9rem', color: '#767970' }}>
+          {view === 'login' && (<>Don't have an account? <button onClick={() => handleViewChange('register')} style={{ background: 'none', border: 'none', color: '#ADAE8B', fontWeight: 700, cursor: 'pointer', padding: 0 }}>Register here</button></>)}
+          {view === 'register' && (<>Already initialized? <button onClick={() => handleViewChange('login')} style={{ background: 'none', border: 'none', color: '#ADAE8B', fontWeight: 700, cursor: 'pointer', padding: 0 }}>Log In</button></>)}
+          {view === 'forgot' && (<button onClick={() => handleViewChange('login')} style={{ background: 'none', border: 'none', color: '#ADAE8B', fontWeight: 700, cursor: 'pointer', padding: 0 }}>Back to Log In</button>)}
         </div>
       </div>
     </div>

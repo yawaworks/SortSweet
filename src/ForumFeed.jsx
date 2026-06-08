@@ -119,9 +119,7 @@ function AuthorHoverCard({ authorName, items }) {
                     </div>
                   );
                 })}
-                {Array.from({ length: 3 - recentPosts.length }).map((_, i) => (
-                  <div key={`empty-${i}`} className="hover-profile-thumb-cell hover-profile-thumb-empty" />
-                ))}
+
               </div>
             </>
           )}
@@ -180,7 +178,9 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, onLik
   const [feedMenuPos, setFeedMenuPos] = useState({ top: 0, right: 0 });
   const feedMenuRef = useRef(null);
   const [showHoverCard, setShowHoverCard] = useState(false);
+  const [hoverCardPos, setHoverCardPos] = useState({ top: 0, left: 0, openUp: false });
   const hoverTimer = useRef(null);
+  const authorRef = useRef(null);
 
   const displayAuthor = item.authorName || 'Anonymous';
   const displayTime = calculateTimeAgo(item.timestamp);
@@ -195,7 +195,20 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, onLik
 
   const handleAuthorMouseEnter = () => {
     clearTimeout(hoverTimer.current);
-    hoverTimer.current = setTimeout(() => setShowHoverCard(true), 400);
+    hoverTimer.current = setTimeout(() => {
+      if (authorRef.current) {
+        const r = authorRef.current.getBoundingClientRect();
+        const cardH = 280; // approx hover card height
+        const spaceBelow = window.innerHeight - r.bottom;
+        const openUp = spaceBelow < cardH + 16;
+        setHoverCardPos({
+          top: openUp ? r.top - cardH - 8 : r.bottom + 4,
+          left: Math.min(r.left, window.innerWidth - 280),
+          openUp,
+        });
+      }
+      setShowHoverCard(true);
+    }, 350);
   };
   const handleAuthorMouseLeave = (e) => {
     // Only hide if we're not moving into the hover card itself
@@ -209,40 +222,44 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, onLik
 
   // Bug fix 2: Only show 🔒 badge for PRIVATE posts, never "Public"
   const privacyBadge = !item.isPublic && isOwn
-    ? <span style={{ fontSize: '11px', color: '#8e9aa6', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '2px' }}>🔒 Private</span>
+    ? <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '2px' }}>🔒 Private</span>
     : null;
 
   const menuContent = (
-    <div className="sidebar-dropdown-menu" style={{ position: 'fixed', top: feedMenuPos.top, right: feedMenuPos.right, zIndex: 999999, display: 'block', background: '#ffffff', boxShadow: '0px 4px 16px rgba(0,0,0,0.12)', borderRadius: '8px', minWidth: '170px', padding: '4px 0', border: '1px solid #f0e6e1' }}>
-      {isOwn && <button type="button" style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#2c3e50' }} onClick={() => { onSelect(); setShowFeedMenu(false); }}>Edit Post</button>}
-      {isOwn && <button type="button" style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#2c3e50' }} onClick={() => { onUpdateItem(item.id, { isPublic: !item.isPublic }); setShowFeedMenu(false); }}>{item.isPublic ? '🔒 Make Private' : '🌐 Make Public'}</button>}
-      <button type="button" style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#2c3e50' }} onClick={async () => {
+    <div className="sidebar-dropdown-menu" style={{ position: 'fixed', top: feedMenuPos.top, right: feedMenuPos.right, zIndex: 999999, display: 'block', background: 'var(--bg-card)', boxShadow: '0px 4px 16px rgba(0,0,0,0.12)', borderRadius: '8px', minWidth: '170px', padding: '4px 0', border: '1px solid var(--border-light)' }}>
+      {isOwn && <button type="button" style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: 'var(--text-primary)' }} onClick={() => { onSelect(); setShowFeedMenu(false); }}>Edit Post</button>}
+      {isOwn && <button type="button" style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: 'var(--text-primary)' }} onClick={() => { onUpdateItem(item.id, { isPublic: !item.isPublic }); setShowFeedMenu(false); }}>{item.isPublic ? 'Make Private' : ' Make Public'}</button>}
+      <button type="button" style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: 'var(--text-primary)' }} onClick={async () => {
         const url = window.location.origin + '/?post=' + item.id;
         try { await navigator.clipboard.writeText(url); } catch (e) { prompt('Copy this URL:', url); }
         setShowFeedMenu(false);
       }}>🔗 Copy URL</button>
-      {isOwn && <button type="button" style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#2c3e50' }} onClick={() => { onUpdateItem(item.id, { archived: !item.archived }); setShowFeedMenu(false); }}>{item.archived ? '▼ Unarchive' : '▼ Archive'}</button>}
-      {isOwn && <div style={{ height: '1px', background: '#f0f0f0', margin: '4px 0' }} />}
-      {isOwn && <button type="button" style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#ff6b6b' }} onClick={() => { if (window.confirm("Permanently delete this entry?")) { onDeleteItem(item.id); } setShowFeedMenu(false); }}>Delete Post</button>}
+      {isOwn && <button type="button" style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: 'var(--text-primary)' }} onClick={() => { onUpdateItem(item.id, { archived: !item.archived }); setShowFeedMenu(false); }}>{item.archived ? '▼ Unarchive' : '▼ Archive'}</button>}
+      {isOwn && <div style={{ height: '1px', background: 'var(--border-light)', margin: '4px 0' }} />}
+      {isOwn && <button type="button" style={{ width: '100%', padding: '8px 12px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', color: '#848571' }} onClick={() => { if (window.confirm("Permanently delete this entry?")) { onDeleteItem(item.id); } setShowFeedMenu(false); }}>Delete Post</button>}
     </div>
   );
 
   const authorBlock = (
     <div
+      ref={authorRef}
       className="feed-user-meta-row"
-      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#8e9aa6', marginBottom: '6px', position: 'relative', cursor: 'pointer' }}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px', position: 'relative', cursor: 'pointer' }}
       onMouseEnter={handleAuthorMouseEnter}
       onMouseLeave={handleAuthorMouseLeave}
     >
-      <span className="feed-author-bold-name" style={{ fontWeight: 700, color: '#ff8b94' }}>{displayAuthor}</span>
-      <span style={{ color: '#8e9aa6', marginLeft: '2px' }}>{displayTime}</span>
+      <span className="feed-author-bold-name" style={{ fontWeight: 700, color: 'var(--accent)' }}>{displayAuthor}</span>
+      <span style={{ color: 'var(--text-muted)', marginLeft: '2px' }}>{displayTime}</span>
       <AnimatePresence>
         {showHoverCard && (
           <motion.div
-            initial={{ opacity: 0, y: 4 }}
+            initial={{ opacity: 0, y: hoverCardPos.openUp ? -4 : 4 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 4 }}
-            style={{ position: 'absolute', top: '100%', left: 0, zIndex: 9999, marginTop: '4px' }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            style={{ position: 'fixed', top: hoverCardPos.top, left: hoverCardPos.left, zIndex: 99999 }}
+            onMouseEnter={() => clearTimeout(hoverTimer.current)}
+            onMouseLeave={handleAuthorMouseLeave}
             onClick={e => e.stopPropagation()}
           >
             <AuthorHoverCard authorName={displayAuthor} items={allItems || []} />
@@ -261,16 +278,16 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, onLik
           {authorBlock}
         </div>
         <div className="feed-item-menu-container" ref={feedMenuRef} onClick={e => e.stopPropagation()} style={{ position: 'absolute', right: '12px', top: '12px', zIndex: 9999 }}>
-          <button className="control-btn feed-three-dots-trigger" onClick={e => { e.stopPropagation(); if (!showFeedMenu) { const r = e.currentTarget.getBoundingClientRect(); setFeedMenuPos({ top: r.bottom + 4, right: window.innerWidth - r.right }); } setShowFeedMenu(v => !v); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', fontSize: '14px', color: '#8e9aa6', fontWeight: 'bold', lineHeight: 1 }}>•••</button>
+          <button className="control-btn feed-three-dots-trigger" onClick={e => { e.stopPropagation(); if (!showFeedMenu) { const r = e.currentTarget.getBoundingClientRect(); setFeedMenuPos({ top: r.bottom + 4, right: window.innerWidth - r.right }); } setShowFeedMenu(v => !v); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', fontSize: '14px', color: 'var(--text-muted)', fontWeight: 'bold', lineHeight: 1 }}>•••</button>
           {showFeedMenu && menuContent}
         </div>
         <h3 style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: 800, textAlign: 'left', letterSpacing: '-0.2px' }}>
           {isPinned && <span style={{ fontSize: '12px', marginRight: '4px' }}>📌</span>}{title || 'Untitled Entry'}
         </h3>
-        {bodyPreview && <p style={{ margin: '0 0 auto', fontSize: '13px', color: '#536471', lineHeight: '1.4', textAlign: 'left', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{bodyPreview}</p>}
+        {bodyPreview && <p style={{ margin: '0 0 auto', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.4', textAlign: 'left', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{bodyPreview}</p>}
         {item.image && <img src={item.image} alt="" style={{ width: '100%', maxHeight: '120px', objectFit: 'cover', borderRadius: '8px', marginTop: '10px' }} />}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#8e9aa6', fontSize: '13px', marginTop: '10px' }}>
-          <button className="control-btn" onClick={e => { e.stopPropagation(); onLikeItem ? onLikeItem(item.id) : onUpdateItem(item.id, { liked: !item.liked }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', padding: 0, color: item.liked ? '#ff8b94' : '#8e9aa6' }}>{item.liked ? "𖹭.ᐟ" : "♡"}</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-muted)', fontSize: '13px', marginTop: '10px' }}>
+          <button className="control-btn" onClick={e => { e.stopPropagation(); onLikeItem ? onLikeItem(item.id) : onUpdateItem(item.id, { liked: !item.liked }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', padding: 0, color: item.liked ? '#ADAE8B' : '#B3B9B5' }}>{item.liked ? "𖹭.ᐟ" : "♡"}</button>
           <button className="control-btn" onClick={e => { e.stopPropagation(); onUpdateItem(item.id, { bookmarked: !item.bookmarked }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', padding: 0, color: item.bookmarked ? '#f5c518' : '#8e9aa6' }}>{item.bookmarked ? "★" : "☆"}</button>
           <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>💬 {item.comments?.length || 0}</span>
           {privacyBadge}
@@ -293,10 +310,10 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, onLik
           </h3>
         </div>
 
-        {bodyPreview && <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#536471', lineHeight: '1.4', textAlign: 'left', wordBreak: 'break-word', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{bodyPreview}</p>}
+        {bodyPreview && <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.4', textAlign: 'left', wordBreak: 'break-word', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{bodyPreview}</p>}
 
-        <div className="post-meta-bottom-toolbar" style={{ display: 'flex', alignItems: 'center', gap: '14px', color: '#8e9aa6', fontSize: '13px', justifyContent: 'flex-start', marginTop: '4px' }}>
-          <button className="control-btn reaction-heart" onClick={e => { e.stopPropagation(); onLikeItem ? onLikeItem(item.id) : onUpdateItem(item.id, { liked: !item.liked }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', padding: 0, color: item.liked ? '#ff8b94' : '#8e9aa6', display: 'flex', alignItems: 'center' }}>
+        <div className="post-meta-bottom-toolbar" style={{ display: 'flex', alignItems: 'center', gap: '14px', color: 'var(--text-muted)', fontSize: '13px', justifyContent: 'flex-start', marginTop: '4px' }}>
+          <button className="control-btn reaction-heart" onClick={e => { e.stopPropagation(); onLikeItem ? onLikeItem(item.id) : onUpdateItem(item.id, { liked: !item.liked }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', padding: 0, color: item.liked ? '#ADAE8B' : '#B3B9B5', display: 'flex', alignItems: 'center' }}>
             {item.liked ? "𖹭.ᐟ" : "♡"}
           </button>
           <button className="control-btn reaction-star" onClick={e => { e.stopPropagation(); onUpdateItem(item.id, { bookmarked: !item.bookmarked }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', padding: 0, color: item.bookmarked ? '#f5c518' : '#8e9aa6', display: 'flex', alignItems: 'center' }}>
@@ -309,7 +326,7 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, onLik
 
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
         <div className="feed-item-menu-container" ref={feedMenuRef}>
-          <button className="control-btn feed-three-dots-trigger" onClick={e => { e.stopPropagation(); if (!showFeedMenu) { const r = e.currentTarget.getBoundingClientRect(); setFeedMenuPos({ top: r.bottom + 4, right: window.innerWidth - r.right }); } setShowFeedMenu(v => !v); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', fontSize: '14px', color: '#8e9aa6', fontWeight: 'bold', lineHeight: 1 }}>•••</button>
+          <button className="control-btn feed-three-dots-trigger" onClick={e => { e.stopPropagation(); if (!showFeedMenu) { const r = e.currentTarget.getBoundingClientRect(); setFeedMenuPos({ top: r.bottom + 4, right: window.innerWidth - r.right }); } setShowFeedMenu(v => !v); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', fontSize: '14px', color: 'var(--text-muted)', fontWeight: 'bold', lineHeight: 1 }}>•••</button>
           {showFeedMenu && menuContent}
         </div>
         {item.image && <div style={{ width: '64px', height: '64px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0 }}><img src={item.image} alt="Attachment" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>}

@@ -108,11 +108,11 @@ export default function PostDetailSidebar({
       document.body.appendChild(ta);
       ta.focus();
       ta.select();
-      try { document.execCommand('copy'); setCopyLabel('✓ Copied!'); }
+      try { document.execCommand('copy'); setCopyLabel('Copied!'); }
       catch { prompt('Copy this link:', url); }
       document.body.removeChild(ta);
     }
-    setTimeout(() => setCopyLabel('🔗 Copy URL'), 2000);
+    setTimeout(() => setCopyLabel('Copy URL'), 2000);
     setShowMenu(false);
   };
 
@@ -155,13 +155,13 @@ export default function PostDetailSidebar({
           {showMenu && (
             <div className="sidebar-dropdown-menu" style={{ position: 'fixed', top: dropdownPos.top, right: dropdownPos.right, zIndex: 999999 }}>
               {isOp && (
-                <button type="button" onClick={() => { setIsEditing(true); setShowMenu(false); }}>✏️ Edit Post</button>
+                <button type="button" onClick={() => { setIsEditing(true); setShowMenu(false); }}>Edit Post</button>
               )}
               <button type="button" onClick={handleCopyUrl}>{copyLabel}</button>
               {isOp && (
                 <button type="button" className="menu-delete-action" onClick={() => {
                   if (window.confirm("Delete this entry permanently?")) { onDeletePost(item.id); onClose(); }
-                }}>🗑 Delete Post</button>
+                }}>Delete Post</button>
               )}
             </div>
           )}

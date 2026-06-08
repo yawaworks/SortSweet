@@ -47,7 +47,7 @@ export default function ProfileDashboard({ user, onUpdateUser, onClose, inline =
       if (uploadError) throw uploadError;
       const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
       setAvatarUrl(publicUrl);
-      setStatusMessage({ text: 'Profile picture updated! ✨', type: 'success' });
+      setStatusMessage({ text: 'Profile picture updated.', type: 'success' });
     } catch (err) {
       setStatusMessage({ text: err.message || 'Upload failed.', type: 'error' });
     } finally {
@@ -89,7 +89,7 @@ export default function ProfileDashboard({ user, onUpdateUser, onClose, inline =
         isPublic: data.is_public,
       };
       onUpdateUser(updatedUser);
-      setStatusMessage({ text: 'Changes saved successfully! ✨', type: 'success' });
+      setStatusMessage({ text: 'Changes saved successfully.', type: 'success' });
     } catch (err) {
       setStatusMessage({ text: err.message || 'Failed to save. Please try again.', type: 'error' });
     } finally {
@@ -164,7 +164,7 @@ export default function ProfileDashboard({ user, onUpdateUser, onClose, inline =
             <div>
               <label style={{ cursor: 'pointer' }}>Account visibility</label>
               <p style={{ fontSize: '13px', color: '#666', margin: '2px 0 0', fontWeight: 400 }}>
-                {isPublic ? '🌐 Public — anyone can see your profile and entries' : '🔒 Private — only you see your entries'}
+                {isPublic ? 'Public : anyone can see your profile and entries' : 'Private : only you see your entries'}
               </p>
             </div>
             <div className={`profile-toggle-switch ${isPublic ? 'on' : 'off'}`}>

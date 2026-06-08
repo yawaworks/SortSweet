@@ -260,9 +260,9 @@ export default function PostDetailSidebar({
                     <p className="sidebar-comment-text">{comment.text}</p>
                     <button
                       className="sidebar-comment-reply-btn"
-                      onClick={() => setReplyingTo(replyingTo?.commentId === comment.id ? null : { commentId: comment.id, author: comment.author })}
+                      onClick={() => setReplyingTo({ commentId: comment.id, author: comment.author })}
                     >
-                      {replyingTo?.commentId === comment.id ? '✕ Cancel' : '↩ Reply'}
+                      ↩ Reply
                     </button>
                   </div>
                 </motion.div>
@@ -293,6 +293,12 @@ export default function PostDetailSidebar({
                         )}
                       </div>
                       <p className="sidebar-comment-text">{reply.text}</p>
+                      <button
+                        className="sidebar-comment-reply-btn"
+                        onClick={() => setReplyingTo({ commentId: comment.id, author: reply.author })}
+                      >
+                        ↩ Reply
+                      </button>
                     </div>
                   </motion.div>
                 ))}

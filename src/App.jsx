@@ -73,7 +73,15 @@ export default function App() {
       if (session?.user) { setUserId(session.user.id); userIdRef.current = session.user.id; fetchOrCreateProfile(session.user); }
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user) { setUserId(session.user.id); userIdRef.current = session.user.id; fetchOrCreateProfile(session.user); }
+      if (session?.user) {
+        setUserId(session.user.id);
+        userIdRef.current = session.user.id;
+        // Only fetch profile on actual sign-in events, not token refreshes or
+        // USER_UPDATED events — those would overwrite a just-saved profile update.
+        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+          fetchOrCreateProfile(session.user);
+        }
+      }
       else if (event === 'SIGNED_OUT') {
         setUser(null); setUserId(null); userIdRef.current = null; setItems([]);
         setUserLikes({}); setUserBookmarks({});
@@ -529,9 +537,32 @@ export default function App() {
     if (activeDraft?.id === draftId) setActiveDraft(null);
   };
 
-  const handleUpdateUserProfile = (updatedUserObj) => {
+  const handleUpdateUserProfile = async (updatedUserObj) => {
     setUser(updatedUserObj);
     localStorage.setItem('sortsweet-user', JSON.stringify(updatedUserObj));
+
+    const newName = updatedUserObj.nickname || updatedUserObj.username || '';
+    const newAvatar = updatedUserObj.avatar || updatedUserObj.avatarUrl || '';
+
+    // Update in-memory posts so the feed reflects the new name/avatar immediately
+    setItems(prev => prev.map(item =>
+      item._userId === updatedUserObj.id
+        ? { ...item, authorName: newName, authorAvatar: newAvatar }
+        : item
+    ));
+
+    // Persist the new author_name / author_avatar on all the user's posts in DB
+    try {
+      const uid = userIdRef.current;
+      if (uid) {
+        await supabase
+          .from('posts')
+          .update({ author_name: newName, author_avatar: newAvatar })
+          .eq('user_id', uid);
+      }
+    } catch (err) {
+      console.error('Failed to update post author info:', err);
+    }
   };
 
   const displayedItems = useMemo(() => {

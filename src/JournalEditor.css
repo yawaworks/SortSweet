@@ -282,9 +282,8 @@
   justify-content: space-between;
   align-items: flex-start;
   padding: 16px !important;
-  border-bottom: 1px solid #F5F2EE !important;
   background: #ffffff !important;
-  border-radius: 0px !important;
+  border-radius: 16px !important;
   box-shadow: none !important;
   margin: 0 !important;
   width: 100%;

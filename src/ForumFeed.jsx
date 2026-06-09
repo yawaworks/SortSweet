@@ -291,7 +291,7 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, onLik
     return (
       <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }} transition={softSpringTransition}
         className={`gallery-card ${isActive ? 'active-row' : ''} ${isPinned ? 'pinned-card' : ''}`}
-        onClick={onSelect} style={{ padding: '16px', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', position: 'relative' }}>
+        onClick={onSelect} style={{ padding: '16px', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', position: 'relative', aspectRatio: '1/1', overflow: 'hidden' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', paddingRight: '24px' }}>
           {authorBlock}
         </div>
@@ -299,12 +299,12 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, onLik
           <button className="control-btn feed-three-dots-trigger" onClick={e => { e.stopPropagation(); if (!showFeedMenu) { const r = e.currentTarget.getBoundingClientRect(); setFeedMenuPos({ top: r.bottom + 4, right: window.innerWidth - r.right }); } setShowFeedMenu(v => !v); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', fontSize: '14px', color: 'var(--text-muted)', fontWeight: 'bold', lineHeight: 1 }}>•••</button>
           {showFeedMenu && menuContent}
         </div>
-        <h3 style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: 800, textAlign: 'left', letterSpacing: '-0.2px' }}>
+        <h3 style={{ margin: '0 0 6px', fontSize: '15px', fontWeight: 800, textAlign: 'left', letterSpacing: '-0.2px', flexShrink: 0 }}>
           {isPinned && <span style={{ fontSize: '12px', marginRight: '4px' }}>📌</span>}{title || 'Untitled Entry'}
         </h3>
-        {bodyPreview && <p style={{ margin: '0 0 auto', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.4', textAlign: 'left', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{bodyPreview}</p>}
-        {item.image && <img src={item.image} alt="" style={{ width: '100%', maxHeight: '120px', objectFit: 'cover', borderRadius: '8px', marginTop: '10px' }} />}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-muted)', fontSize: '13px', marginTop: '10px' }}>
+        {bodyPreview && <p style={{ margin: '0', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.4', textAlign: 'left', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden', flex: 1 }}>{bodyPreview}</p>}
+        {item.image && !bodyPreview && <div style={{ flex: 1, overflow: 'hidden', borderRadius: '8px', marginTop: '6px' }}><img src={item.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /></div>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-muted)', fontSize: '13px', marginTop: '8px', flexShrink: 0 }}>
           <button className="control-btn" onClick={e => { e.stopPropagation(); onLikeItem ? onLikeItem(item.id) : onUpdateItem(item.id, { liked: !item.liked }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', padding: 0, color: item.liked ? '#ADAE8B' : '#B3B9B5' }}>{item.liked ? "𖹭.ᐟ" : "♡"}</button>
           <button className="control-btn" onClick={e => { e.stopPropagation(); onUpdateItem(item.id, { bookmarked: !item.bookmarked }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', padding: 0, color: item.bookmarked ? '#f5c518' : '#8e9aa6' }}>{item.bookmarked ? "★" : "☆"}</button>
           <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>💬 {item.comments?.length || 0}</span>

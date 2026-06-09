@@ -291,23 +291,25 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, onLik
     return (
       <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }} transition={softSpringTransition}
         className={`gallery-card ${isActive ? 'active-row' : ''} ${isPinned ? 'pinned-card' : ''}`}
-        onClick={onSelect} style={{ padding: '16px', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', position: 'relative', aspectRatio: '1/1', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', paddingRight: '24px' }}>
+        onClick={onSelect} style={{ padding: '12px', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', position: 'relative', width: '100%', height: '200px', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px', paddingRight: '20px', flexShrink: 0 }}>
           {authorBlock}
         </div>
-        <div className="feed-item-menu-container" ref={feedMenuRef} onClick={e => e.stopPropagation()} style={{ position: 'absolute', right: '12px', top: '12px', zIndex: 9999 }}>
+        <div className="feed-item-menu-container" ref={feedMenuRef} onClick={e => e.stopPropagation()} style={{ position: 'absolute', right: '8px', top: '8px', zIndex: 9999 }}>
           <button className="control-btn feed-three-dots-trigger" onClick={e => { e.stopPropagation(); if (!showFeedMenu) { const r = e.currentTarget.getBoundingClientRect(); setFeedMenuPos({ top: r.bottom + 4, right: window.innerWidth - r.right }); } setShowFeedMenu(v => !v); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', fontSize: '14px', color: 'var(--text-muted)', fontWeight: 'bold', lineHeight: 1 }}>•••</button>
           {showFeedMenu && menuContent}
         </div>
-        <h3 style={{ margin: '0 0 6px', fontSize: '15px', fontWeight: 800, textAlign: 'left', letterSpacing: '-0.2px', flexShrink: 0 }}>
-          {isPinned && <span style={{ fontSize: '12px', marginRight: '4px' }}>📌</span>}{title || 'Untitled Entry'}
+        <h3 style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: 800, textAlign: 'left', letterSpacing: '-0.2px', flexShrink: 0, lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+          {isPinned && <span style={{ fontSize: '11px', marginRight: '3px' }}>📌</span>}{title || 'Untitled Entry'}
         </h3>
-        {bodyPreview && <p style={{ margin: '0', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.4', textAlign: 'left', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden', flex: 1 }}>{bodyPreview}</p>}
-        {item.image && !bodyPreview && <div style={{ flex: 1, overflow: 'hidden', borderRadius: '8px', marginTop: '6px' }}><img src={item.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /></div>}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-muted)', fontSize: '13px', marginTop: '8px', flexShrink: 0 }}>
-          <button className="control-btn" onClick={e => { e.stopPropagation(); onLikeItem ? onLikeItem(item.id) : onUpdateItem(item.id, { liked: !item.liked }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', padding: 0, color: item.liked ? '#ADAE8B' : '#B3B9B5' }}>{item.liked ? "𖹭.ᐟ" : "♡"}</button>
-          <button className="control-btn" onClick={e => { e.stopPropagation(); onUpdateItem(item.id, { bookmarked: !item.bookmarked }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', padding: 0, color: item.bookmarked ? '#f5c518' : '#8e9aa6' }}>{item.bookmarked ? "★" : "☆"}</button>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>💬 {item.comments?.length || 0}</span>
+        {item.image
+          ? <div style={{ flex: 1, overflow: 'hidden', borderRadius: '6px', margin: '4px 0' }}><img src={item.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /></div>
+          : bodyPreview && <p style={{ margin: '0', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.4', textAlign: 'left', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', flex: 1 }}>{bodyPreview}</p>
+        }
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-muted)', fontSize: '12px', marginTop: 'auto', paddingTop: '4px', flexShrink: 0 }}>
+          <button className="control-btn" onClick={e => { e.stopPropagation(); onLikeItem ? onLikeItem(item.id) : onUpdateItem(item.id, { liked: !item.liked }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', padding: 0, color: item.liked ? '#ADAE8B' : '#B3B9B5' }}>{item.liked ? "𖹭.ᐟ" : "♡"}</button>
+          <button className="control-btn" onClick={e => { e.stopPropagation(); onUpdateItem(item.id, { bookmarked: !item.bookmarked }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', padding: 0, color: item.bookmarked ? '#f5c518' : '#8e9aa6' }}>{item.bookmarked ? "★" : "☆"}</button>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>💬 {item.comments?.length || 0}</span>
           {privacyBadge}
         </div>
       </motion.div>

@@ -31,6 +31,32 @@
   --card-hover:        #FAFAF7;
 }
 
+/* ── Scrollbars ── */
+/* Webkit (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--dust-grey);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--pale-oak);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--dust-grey) transparent;
+}
+
 body {
   background-color: var(--bg-main);
   color: var(--text-primary);
@@ -1240,7 +1266,7 @@ body {
 }
 
 .item-card {
-  background: var(--bg-main);
+  background: #ffffff;
   border: 1px solid #E0D9D4;
   border-radius: 16px;
   padding: 16px;
@@ -1261,35 +1287,32 @@ body {
 
 .item-card.active-row {
   border-color: var(--accent-pink);
-  background: var(--bg-input);
+  background: #FAFAF7;
 }
 
 /* ── Gallery view ── */
 .forum-feed.gallery-view {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  grid-auto-rows: 1fr;
   gap: 16px;
-  align-items: stretch;
+  align-items: start;
 }
 
 .forum-feed.gallery-view-narrow {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  grid-auto-rows: 1fr;
   gap: 12px;
-  align-items: stretch;
+  align-items: start;
 }
 
 .gallery-card {
-  background: var(--bg-main);
+  background: #ffffff;
   border: 1px solid #EDEAE5;
   border-radius: 16px;
   overflow: hidden;
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  aspect-ratio: 1 / 1;
   transition: box-shadow 0.18s, border-color 0.18s;
   position: relative;
 }
@@ -1336,10 +1359,9 @@ body {
 
 .gallery-card-img {
   width: 100%;
-  flex: 1;
-  min-height: 0;
   display: block;
   object-fit: cover;
+  max-height: 320px;
 }
 
 /* Body preview (text-only cards) */
@@ -2054,7 +2076,7 @@ body {
   text-align: center;
   line-height: 1.3;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

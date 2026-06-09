@@ -242,30 +242,48 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, onLik
 
   const authorBlock = (
     <div
-      ref={authorRef}
       className="feed-user-meta-row"
-      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px', position: 'relative', cursor: 'pointer' }}
-      onMouseEnter={handleAuthorMouseEnter}
-      onMouseLeave={handleAuthorMouseLeave}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px', position: 'relative' }}
     >
+      {/* Avatar icon — hover target */}
+      <div
+        ref={authorRef}
+        onMouseEnter={handleAuthorMouseEnter}
+        onMouseLeave={handleAuthorMouseLeave}
+        style={{ position: 'relative', flexShrink: 0, cursor: 'pointer' }}
+      >
+        <div style={{
+          width: '24px', height: '24px', borderRadius: '50%', overflow: 'hidden',
+          background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '11px', fontWeight: 700, color: 'var(--accent)',
+          border: '1px solid var(--border-light)', flexShrink: 0,
+        }}>
+          {item.authorAvatar
+            ? <img src={item.authorAvatar} alt={displayAuthor} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            : displayAuthor.charAt(0).toUpperCase()
+          }
+        </div>
+        <AnimatePresence>
+          {showHoverCard && (
+            <motion.div
+              initial={{ opacity: 0, y: hoverCardPos.openUp ? -4 : 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              style={{ position: 'fixed', top: hoverCardPos.top, left: hoverCardPos.left, zIndex: 99999 }}
+              onMouseEnter={() => clearTimeout(hoverTimer.current)}
+              onMouseLeave={handleAuthorMouseLeave}
+              onClick={e => e.stopPropagation()}
+            >
+              <AuthorHoverCard authorName={displayAuthor} items={allItems || []} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Nickname + timestamp */}
       <span className="feed-author-bold-name" style={{ fontWeight: 700, color: 'var(--accent)' }}>{displayAuthor}</span>
-      <span style={{ color: 'var(--text-muted)', marginLeft: '2px' }}>{displayTime}</span>
-      <AnimatePresence>
-        {showHoverCard && (
-          <motion.div
-            initial={{ opacity: 0, y: hoverCardPos.openUp ? -4 : 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            style={{ position: 'fixed', top: hoverCardPos.top, left: hoverCardPos.left, zIndex: 99999 }}
-            onMouseEnter={() => clearTimeout(hoverTimer.current)}
-            onMouseLeave={handleAuthorMouseLeave}
-            onClick={e => e.stopPropagation()}
-          >
-            <AuthorHoverCard authorName={displayAuthor} items={allItems || []} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <span style={{ color: 'var(--text-muted)' }}>{displayTime}</span>
     </div>
   );
 
@@ -285,7 +303,7 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, onLik
           {isPinned && <span style={{ fontSize: '12px', marginRight: '4px' }}>📌</span>}{title || 'Untitled Entry'}
         </h3>
         {bodyPreview && <p style={{ margin: '0 0 auto', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.4', textAlign: 'left', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{bodyPreview}</p>}
-        {item.image && <img src={item.image} alt="" style={{ width: '100%', flex: 1, minHeight: 0, objectFit: 'cover', borderRadius: 0, marginTop: '10px', display: 'block' }} />}
+        {item.image && <img src={item.image} alt="" style={{ width: '100%', maxHeight: '120px', objectFit: 'cover', borderRadius: '8px', marginTop: '10px' }} />}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-muted)', fontSize: '13px', marginTop: '10px' }}>
           <button className="control-btn" onClick={e => { e.stopPropagation(); onLikeItem ? onLikeItem(item.id) : onUpdateItem(item.id, { liked: !item.liked }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', padding: 0, color: item.liked ? '#ADAE8B' : '#B3B9B5' }}>{item.liked ? "𖹭.ᐟ" : "♡"}</button>
           <button className="control-btn" onClick={e => { e.stopPropagation(); onUpdateItem(item.id, { bookmarked: !item.bookmarked }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', padding: 0, color: item.bookmarked ? '#f5c518' : '#8e9aa6' }}>{item.bookmarked ? "★" : "☆"}</button>

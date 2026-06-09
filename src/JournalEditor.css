@@ -261,8 +261,7 @@
 
 .items-list, 
 .posts-container,
-.journal-entries-feed,
-.forum-feed {
+.journal-entries-feed {
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -273,10 +272,11 @@
   margin-top: 16px;
 }
 
+/* .forum-feed is styled via App.css — no wrapper background here */
+
 .item-card,
 .post-card,
-.forum-post,
-.journal-post-compiled {
+.forum-post {
   display: flex !important;
   flex-direction: row !important;
   justify-content: space-between;
@@ -290,6 +290,18 @@
   width: 100%;
   box-sizing: border-box;
   transition: background-color 0.2s ease;
+}
+
+/* Compiled post HTML wrapper — must be transparent/neutral inside cards */
+.journal-post-compiled {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .item-card:hover,

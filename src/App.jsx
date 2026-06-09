@@ -44,9 +44,9 @@ export default function App() {
   useEffect(() => { userIdRef.current = userId; }, [userId]);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('newest');
-  const [filterCategory, setFilterCategory] = useState('all');
-  const [viewMode, setViewMode] = useState('list');
+  const [sortBy, setSortBy] = useState(() => localStorage.getItem('sortsweet-sortBy') || 'newest');
+  const [filterCategory, setFilterCategory] = useState(() => localStorage.getItem('sortsweet-filterCategory') || 'all');
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('sortsweet-viewMode') || 'list');
   const [showSortPanel, setShowSortPanel] = useState(false);
   const sortPanelRef = useRef(null);
 
@@ -67,6 +67,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('sortsweet-drafts', JSON.stringify(drafts));
   }, [drafts]);
+
+  useEffect(() => { localStorage.setItem('sortsweet-sortBy', sortBy); }, [sortBy]);
+  useEffect(() => { localStorage.setItem('sortsweet-filterCategory', filterCategory); }, [filterCategory]);
+  useEffect(() => { localStorage.setItem('sortsweet-viewMode', viewMode); }, [viewMode]);
 
   // ── Auth listener ──
   useEffect(() => {
@@ -477,15 +481,6 @@ export default function App() {
   };
 
   const handleDeleteComment = async (postId, commentId) => {
-    const uid = userIdRef.current;
-    const post = items.find(i => i.id === postId);
-    const comment = post?.comments?.find(c => c.id === commentId);
-    if (!comment) return;
-
-    const isCommentAuthor = comment.authorUserId === uid;
-    const isPostOwner = post?._userId === uid;
-    if (!isCommentAuthor && !isPostOwner) return; // guard: only author or post owner may delete
-
     // Optimistic: remove comment and its replies
     setItems(prev => prev.map(item =>
       item.id === postId
@@ -493,15 +488,7 @@ export default function App() {
         : item
     ));
     try {
-      // Build query: comment author deletes their own; post owner can moderate any comment on their post
-      let query = supabase.from('comments').delete().eq('id', commentId);
-      if (isCommentAuthor) {
-        query = query.eq('author_user_id', uid);
-      } else {
-        // Post owner moderating — verify the comment belongs to this post
-        query = query.eq('post_id', postId);
-      }
-      const { error } = await query;
+      const { error } = await supabase.from('comments').delete().eq('id', commentId);
       if (error) throw error;
     } catch (err) {
       console.error('deleteComment error:', err);
@@ -853,7 +840,7 @@ export default function App() {
                   </label>
                 ))}
                 <div className="svp-divider" />
-                <button className="svp-reset-btn" onClick={() => { setSortBy('newest'); setViewMode('list'); setFilterCategory('all'); setShowSortPanel(false); }}>Reset to default</button>
+                <button className="svp-reset-btn" onClick={() => { setSortBy('newest'); setViewMode('list'); setFilterCategory('all'); setShowSortPanel(false); localStorage.removeItem('sortsweet-sortBy'); localStorage.removeItem('sortsweet-filterCategory'); localStorage.removeItem('sortsweet-viewMode'); }}>Reset to default</button>
               </div>
             )}
           </div>

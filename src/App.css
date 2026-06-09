@@ -1370,15 +1370,15 @@ body {
 /* ── Gallery view ── */
 .forum-feed.gallery-view {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
   align-items: start;
 }
 
 .forum-feed.gallery-view-narrow {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  gap: 10px;
   align-items: start;
 }
 
@@ -1392,7 +1392,8 @@ body {
   flex-direction: column;
   transition: box-shadow 0.18s, border-color 0.18s;
   position: relative;
-  height: 200px;
+  aspect-ratio: 1 / 1;
+  min-height: 0;
 }
 
 .gallery-card:hover {

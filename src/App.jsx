@@ -30,7 +30,8 @@ export default function App() {
 
   // Left nav panel state
   const [leftNavOpen, setLeftNavOpen] = useState(false);
-  const [leftNavView, setLeftNavView] = useState(null); // 'settings'|'drafts'|'bookmarks'|'archive'|'notifications'
+  const [leftNavView, setLeftNavView] = useState(null); // 'drafts'|'bookmarks'|'archive'|'notifications'
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const leftNavRef = useRef(null);
 
   // Likes & bookmarks from Supabase (keyed by post_id)
@@ -643,8 +644,8 @@ export default function App() {
           <span>Archive</span>
         </button>
 
-        <button className={`left-nav-item ${leftNavView === 'settings' ? 'active' : ''}`}
-          onClick={() => setLeftNavView(v => v === 'settings' ? null : 'settings')}>
+        <button className={`left-nav-item ${showSettingsModal ? 'active' : ''}`}
+          onClick={() => setShowSettingsModal(true)}>
           <span className="left-nav-icon">⚙️</span>
           <span>Settings</span>
         </button>
@@ -753,11 +754,6 @@ export default function App() {
           </div>
         )}
 
-        {leftNavView === 'settings' && (
-          <div className="left-nav-inline-panel" style={{ padding: '12px 0 0' }}>
-            <ProfileDashboard user={user} onUpdateUser={handleUpdateUserProfile} onClose={() => setLeftNavView(null)} inline />
-          </div>
-        )}
       </nav>
 
       {/* ── Main content ── */}
@@ -809,7 +805,7 @@ export default function App() {
           <div className="sort-view-pill-wrapper" ref={sortPanelRef}>
             <button className={`sort-view-pill-btn ${showSortPanel ? 'open' : ''}`} onClick={() => setShowSortPanel(v => !v)}>
               <span className="sort-view-pill-icon">⇅</span> Sort &amp; View
-              <span className="sort-view-pill-chevron">{showSortPanel ? '▴' : '▾'}</span>
+              <span className="sort-view-pill-chevron">{showSortPanel ? '︿' : '﹀'}</span>
             </button>
             {showSortPanel && (
               <div className="sort-view-dropdown-panel">
@@ -875,6 +871,13 @@ export default function App() {
           </div>
         </div>
       </div>
+      {showSettingsModal && (
+        <ProfileDashboard
+          user={user}
+          onUpdateUser={handleUpdateUserProfile}
+          onClose={() => setShowSettingsModal(false)}
+        />
+      )}
     </div>
   );
 }

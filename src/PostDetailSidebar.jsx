@@ -19,7 +19,7 @@ export default function PostDetailSidebar({
 
   const currentUserName = currentUser?.nickname || currentUser?.username || currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User';
   const currentUserAvatar = currentUser?.avatar || currentUser?.avatarUrl || null;
-  const isOp = item._userId === currentUser?.id || item.authorName === currentUserName;
+  const isOp = !!(currentUser?.id && item._userId === currentUser?.id);
 
   useEffect(() => {
     if (item) {
@@ -252,7 +252,7 @@ export default function PostDetailSidebar({
                       <span className="sidebar-author-display-name" style={{ fontSize: 13 }}>{comment.author || 'User'}</span>
                       {comment.author === authorName && <span className="sidebar-op-badge">OP</span>}
                       <span className="sidebar-author-handle-sub" style={{ marginLeft: 'auto' }}>{comment.timestamp}</span>
-                      {/* Allow deleting own comments or post owner can delete any */}
+                      {/* Comment author can delete their own; post owner (OP) can moderate any comment */}
                       {(comment.authorUserId === currentUser?.id || isOp) && typeof onDeleteComment === 'function' && (
                         <button className="sidebar-comment-delete-btn" onClick={() => onDeleteComment(item.id, comment.id)} title="Delete">✕</button>
                       )}

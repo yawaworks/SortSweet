@@ -809,7 +809,7 @@ export default function App() {
           <div className="sort-view-pill-wrapper" ref={sortPanelRef}>
             <button className={`sort-view-pill-btn ${showSortPanel ? 'open' : ''}`} onClick={() => setShowSortPanel(v => !v)}>
               <span className="sort-view-pill-icon">⇅</span> Sort &amp; View
-              <span className="sort-view-pill-chevron">{showSortPanel ? '︿' : '﹀'}</span>
+              <span className="sort-view-pill-chevron">{showSortPanel ? '▴' : '▾'}</span>
             </button>
             {showSortPanel && (
               <div className="sort-view-dropdown-panel">

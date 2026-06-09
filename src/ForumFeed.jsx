@@ -285,7 +285,7 @@ function ForumPost({ item, isActive, onSelect, onDeleteItem, onUpdateItem, onLik
           {isPinned && <span style={{ fontSize: '12px', marginRight: '4px' }}>📌</span>}{title || 'Untitled Entry'}
         </h3>
         {bodyPreview && <p style={{ margin: '0 0 auto', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.4', textAlign: 'left', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{bodyPreview}</p>}
-        {item.image && <img src={item.image} alt="" style={{ width: '100%', maxHeight: '120px', objectFit: 'cover', borderRadius: '8px', marginTop: '10px' }} />}
+        {item.image && <img src={item.image} alt="" style={{ width: '100%', flex: 1, minHeight: 0, objectFit: 'cover', borderRadius: 0, marginTop: '10px', display: 'block' }} />}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-muted)', fontSize: '13px', marginTop: '10px' }}>
           <button className="control-btn" onClick={e => { e.stopPropagation(); onLikeItem ? onLikeItem(item.id) : onUpdateItem(item.id, { liked: !item.liked }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', padding: 0, color: item.liked ? '#ADAE8B' : '#B3B9B5' }}>{item.liked ? "𖹭.ᐟ" : "♡"}</button>
           <button className="control-btn" onClick={e => { e.stopPropagation(); onUpdateItem(item.id, { bookmarked: !item.bookmarked }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', padding: 0, color: item.bookmarked ? '#f5c518' : '#8e9aa6' }}>{item.bookmarked ? "★" : "☆"}</button>
